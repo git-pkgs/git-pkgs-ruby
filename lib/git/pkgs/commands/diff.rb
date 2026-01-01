@@ -19,26 +19,38 @@ module Git
 
           Database.connect(repo.git_dir)
 
-          from_sha = @options[:from]
-          to_sha = @options[:to] || repo.head_sha
+          from_ref = @options[:from]
+          to_ref = @options[:to] || "HEAD"
 
-          unless from_sha
-            $stderr.puts "Usage: git pkgs diff --from=SHA [--to=SHA]"
+          unless from_ref
+            $stderr.puts "Usage: git pkgs diff --from=REF [--to=REF]"
             exit 1
           end
 
-          from_commit = Models::Commit.find_by(sha: from_sha) ||
-                        Models::Commit.where("sha LIKE ?", "#{from_sha}%").first
-          to_commit = Models::Commit.find_by(sha: to_sha) ||
-                      Models::Commit.where("sha LIKE ?", "#{to_sha}%").first
+          # Resolve git refs (like HEAD~10) to SHAs
+          from_sha = repo.rev_parse(from_ref)
+          to_sha = repo.rev_parse(to_ref)
+
+          unless from_sha
+            $stderr.puts "Could not resolve '#{from_ref}'"
+            exit 1
+          end
+
+          unless to_sha
+            $stderr.puts "Could not resolve '#{to_ref}'"
+            exit 1
+          end
+
+          from_commit = find_or_create_commit(repo, from_sha)
+          to_commit = find_or_create_commit(repo, to_sha)
 
           unless from_commit
-            $stderr.puts "Commit '#{from_sha}' not found in database"
+            $stderr.puts "Commit '#{from_sha[0..7]}' not found"
             exit 1
           end
 
           unless to_commit
-            $stderr.puts "Commit '#{to_sha}' not found in database"
+            $stderr.puts "Commit '#{to_sha[0..7]}' not found"
             exit 1
           end
 
@@ -98,17 +110,38 @@ module Git
           puts "Summary: +#{added.map(&:name).uniq.count} -#{removed.map(&:name).uniq.count} ~#{modified.map(&:name).uniq.count}"
         end
 
+        def find_or_create_commit(repo, sha)
+          commit = Models::Commit.find_by(sha: sha) ||
+                   Models::Commit.where("sha LIKE ?", "#{sha}%").first
+          return commit if commit
+
+          # Lazily insert commit if it exists in git but not in database
+          rugged_commit = repo.lookup(sha)
+          return nil unless rugged_commit
+
+          Models::Commit.create!(
+            sha: rugged_commit.oid,
+            message: rugged_commit.message,
+            author_name: rugged_commit.author[:name],
+            author_email: rugged_commit.author[:email],
+            committed_at: rugged_commit.time,
+            has_dependency_changes: false
+          )
+        rescue Rugged::OdbError
+          nil
+        end
+
         def parse_options
           options = {}
 
           parser = OptionParser.new do |opts|
-            opts.banner = "Usage: git pkgs diff --from=SHA [--to=SHA] [options]"
+            opts.banner = "Usage: git pkgs diff --from=REF [--to=REF] [options]"
 
-            opts.on("-f", "--from=SHA", "Start commit (required)") do |v|
+            opts.on("-f", "--from=REF", "Start commit (required)") do |v|
               options[:from] = v
             end
 
-            opts.on("-t", "--to=SHA", "End commit (default: HEAD)") do |v|
+            opts.on("-t", "--to=REF", "End commit (default: HEAD)") do |v|
               options[:to] = v
             end
 

@@ -28,6 +28,7 @@ git pkgs history        # all dependency changes over time
 git pkgs history rails  # track a specific package
 git pkgs why rails      # why was this added?
 git pkgs diff --from=HEAD~10  # what changed recently?
+git pkgs diff --from=main --to=feature  # compare branches
 ```
 
 ## Commands

@@ -120,6 +120,12 @@ module Git
       def head_sha
         @rugged.head.target_id
       end
+
+      def rev_parse(ref)
+        @rugged.rev_parse(ref).oid
+      rescue Rugged::ReferenceError, Rugged::InvalidError
+        nil
+      end
     end
   end
 end

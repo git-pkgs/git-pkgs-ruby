@@ -66,4 +66,33 @@ class Git::Pkgs::TestRepository < Minitest::Test
 
     assert_equal "# Test", content
   end
+
+  def test_rev_parse_resolves_head
+    repo = Git::Pkgs::Repository.new(@test_dir)
+    sha = repo.rev_parse("HEAD")
+
+    assert sha
+    assert_equal 40, sha.length
+    assert_equal repo.head_sha, sha
+  end
+
+  def test_rev_parse_resolves_relative_refs
+    add_file("file1.txt", "content")
+    commit("Second commit")
+
+    repo = Git::Pkgs::Repository.new(@test_dir)
+    head_sha = repo.rev_parse("HEAD")
+    parent_sha = repo.rev_parse("HEAD~1")
+
+    assert head_sha
+    assert parent_sha
+    refute_equal head_sha, parent_sha
+  end
+
+  def test_rev_parse_returns_nil_for_invalid_ref
+    repo = Git::Pkgs::Repository.new(@test_dir)
+    sha = repo.rev_parse("nonexistent-ref")
+
+    assert_nil sha
+  end
 end
