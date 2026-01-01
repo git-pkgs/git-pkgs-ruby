@@ -105,13 +105,14 @@ Gemfile (rubygems):
   ...
 ```
 
-### View package history
+### View dependency history
 
 ```bash
-git pkgs history rails
+git pkgs history          # all dependency changes
+git pkgs history rails    # changes for a specific package
 ```
 
-Shows when the package was added, version changes, and removal:
+Shows when packages were added, updated, or removed:
 
 ```
 History for rails:

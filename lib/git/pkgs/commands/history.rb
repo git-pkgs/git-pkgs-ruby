@@ -12,11 +12,6 @@ module Git
         def run
           package_name = @args.shift
 
-          unless package_name
-            $stderr.puts "Usage: git pkgs history <package>"
-            exit 1
-          end
-
           repo = Repository.new
 
           unless Database.exists?(repo.git_dir)
@@ -28,15 +23,20 @@ module Git
 
           changes = Models::DependencyChange
             .includes(:commit, :manifest)
-            .for_package(package_name)
             .order("commits.committed_at ASC")
+
+          changes = changes.for_package(package_name) if package_name
 
           if @options[:ecosystem]
             changes = changes.for_platform(@options[:ecosystem])
           end
 
           if changes.empty?
-            puts "No history found for '#{package_name}'"
+            if package_name
+              puts "No history found for '#{package_name}'"
+            else
+              puts "No dependency changes found"
+            end
             return
           end
 
@@ -48,7 +48,11 @@ module Git
         end
 
         def output_text(changes, package_name)
-          puts "History for #{package_name}:"
+          if package_name
+            puts "History for #{package_name}:"
+          else
+            puts "Dependency history:"
+          end
           puts
 
           changes.each do |change|
@@ -67,7 +71,8 @@ module Git
               version_info = change.requirement
             end
 
-            puts "#{date} #{action} #{version_info}"
+            name_prefix = package_name ? "" : "#{change.name} "
+            puts "#{date} #{action} #{name_prefix}#{version_info}"
             puts "  Commit: #{commit.short_sha} #{commit.message&.lines&.first&.strip}"
             puts "  Author: #{commit.author_name} <#{commit.author_email}>"
             puts "  Manifest: #{change.manifest.path}"
@@ -80,6 +85,7 @@ module Git
 
           data = changes.map do |change|
             {
+              name: change.name,
               date: change.commit.committed_at.iso8601,
               change_type: change.change_type,
               requirement: change.requirement,
@@ -102,7 +108,7 @@ module Git
           options = {}
 
           parser = OptionParser.new do |opts|
-            opts.banner = "Usage: git pkgs history <package> [options]"
+            opts.banner = "Usage: git pkgs history [package] [options]"
 
             opts.on("-e", "--ecosystem=NAME", "Filter by ecosystem") do |v|
               options[:ecosystem] = v
