@@ -229,6 +229,16 @@ git pkgs diff --from=HEAD~10
 
 This shows added, removed, and modified packages with version info.
 
+### Show changes in a commit
+
+```bash
+git pkgs show              # show dependency changes in HEAD
+git pkgs show abc123       # specific commit
+git pkgs show HEAD~5       # relative ref
+```
+
+Like `git show` but for dependencies. Shows what was added, modified, or removed in a single commit.
+
 ### Keep database updated
 
 After the initial analysis, you can incrementally update the database with new commits:

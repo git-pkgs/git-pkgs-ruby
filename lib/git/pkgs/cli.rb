@@ -5,7 +5,7 @@ require "optparse"
 module Git
   module Pkgs
     class CLI
-      COMMANDS = %w[init update hooks info list tree history search why blame outdated stats diff branch].freeze
+      COMMANDS = %w[init update hooks info list tree history search why blame outdated stats diff branch show].freeze
 
       def self.run(args)
         new(args).run
@@ -60,6 +60,7 @@ module Git
             outdated  Show dependencies that haven't been updated
             stats     Show dependency statistics
             diff      Show dependency changes between commits
+            show      Show dependency changes in a commit
 
           Options:
             -h, --help     Show this help message
