@@ -1,15 +1,19 @@
 ## [Unreleased]
 
-## [0.2.0] - 2026-01-02
+## [0.3.0] - 2026-01-02
 
-- `git pkgs show` command to display dependency changes in a single commit
 - `git pkgs log` command to list commits with dependency changes
-- `git pkgs history` now supports `--author`, `--since`, and `--until` filters
-- `git pkgs stats --by-author` shows who added the most dependencies
-- `git pkgs stats --ecosystem=X` filters statistics by ecosystem
+- `git pkgs schema` command to output database schema in text, SQL, JSON, or markdown
 - `git pkgs praise` alias for `blame`
 - `git pkgs upgrade` command to handle schema upgrades after updating git-pkgs
 - Schema version tracking with automatic detection of outdated databases
+
+## [0.2.0] - 2026-01-02
+
+- `git pkgs show` command to display dependency changes in a single commit
+- `git pkgs history` now supports `--author`, `--since`, and `--until` filters
+- `git pkgs stats --by-author` shows who added the most dependencies
+- `git pkgs stats --ecosystem=X` filters statistics by ecosystem
 
 ## [0.1.1] - 2026-01-01
 

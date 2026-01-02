@@ -279,6 +279,17 @@ git pkgs upgrade
 
 This is detected automatically and you'll see a message if an upgrade is needed.
 
+### Show database schema
+
+```bash
+git pkgs schema                   # human-readable table format
+git pkgs schema --format=sql      # CREATE TABLE statements
+git pkgs schema --format=json     # JSON structure
+git pkgs schema --format=markdown # markdown tables
+```
+
+Useful for understanding the [database structure](docs/schema.md) or generating documentation.
+
 ### CI usage
 
 You can run git-pkgs in CI to show dependency changes in pull requests:

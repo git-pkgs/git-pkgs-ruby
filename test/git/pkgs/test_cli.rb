@@ -700,3 +700,78 @@ class Git::Pkgs::TestLogCommand < Minitest::Test
     $stdout = original
   end
 end
+
+class Git::Pkgs::TestSchemaCommand < Minitest::Test
+  include TestHelpers
+
+  def setup
+    create_test_repo
+    add_file("Gemfile", "source 'https://rubygems.org'\ngem 'rails'")
+    commit("Add rails")
+    @git_dir = File.join(@test_dir, ".git")
+    Git::Pkgs::Database.connect(@git_dir)
+    Git::Pkgs::Database.create_schema
+  end
+
+  def teardown
+    cleanup_test_repo
+  end
+
+  def test_schema_text_format
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Schema.new([]).run
+      end
+    end
+
+    assert_includes output, "commits"
+    assert_includes output, "dependency_changes"
+    assert_includes output, "manifests"
+    assert_includes output, "sha"
+  end
+
+  def test_schema_sql_format
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Schema.new(["--format=sql"]).run
+      end
+    end
+
+    assert_includes output, "CREATE TABLE"
+    assert_includes output, "commits"
+  end
+
+  def test_schema_json_format
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Schema.new(["--format=json"]).run
+      end
+    end
+
+    data = JSON.parse(output)
+    assert data.key?("commits")
+    assert data.key?("dependency_changes")
+    assert data["commits"]["columns"].any? { |c| c["name"] == "sha" }
+  end
+
+  def test_schema_markdown_format
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Schema.new(["--format=markdown"]).run
+      end
+    end
+
+    assert_includes output, "## commits"
+    assert_includes output, "| Column | Type |"
+    assert_includes output, "| sha |"
+  end
+
+  def capture_stdout
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+end
