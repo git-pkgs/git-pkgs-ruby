@@ -8,6 +8,8 @@
 - `git pkgs stats --by-author` shows who added the most dependencies
 - `git pkgs stats --ecosystem=X` filters statistics by ecosystem
 - `git pkgs praise` alias for `blame`
+- `git pkgs upgrade` command to handle schema upgrades after updating git-pkgs
+- Schema version tracking with automatic detection of outdated databases
 
 ## [0.1.1] - 2026-01-01
 

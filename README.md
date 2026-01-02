@@ -269,6 +269,16 @@ You can also install git hooks to update automatically after commits and merges:
 git pkgs hooks --install
 ```
 
+### Upgrading
+
+After updating git-pkgs, you may need to rebuild the database if the schema has changed:
+
+```bash
+git pkgs upgrade
+```
+
+This is detected automatically and you'll see a message if an upgrade is needed.
+
 ### CI usage
 
 You can run git-pkgs in CI to show dependency changes in pull requests:

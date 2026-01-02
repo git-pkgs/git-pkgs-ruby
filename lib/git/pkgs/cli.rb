@@ -5,7 +5,7 @@ require "optparse"
 module Git
   module Pkgs
     class CLI
-      COMMANDS = %w[init update hooks info list tree history search why blame outdated stats diff branch show log].freeze
+      COMMANDS = %w[init update hooks info list tree history search why blame outdated stats diff branch show log upgrade].freeze
       ALIASES = { "praise" => "blame" }.freeze
 
       def self.run(args)
@@ -64,6 +64,7 @@ module Git
             diff      Show dependency changes between commits
             show      Show dependency changes in a commit
             log       List commits with dependency changes
+            upgrade   Upgrade database after git-pkgs update
 
           Options:
             -h, --help     Show this help message

@@ -7,6 +7,7 @@ module Git
   module Pkgs
     class Database
       DB_FILE = "pkgs.sqlite3"
+      SCHEMA_VERSION = 1
 
       def self.path(git_dir = nil)
         git_dir ||= find_git_dir
@@ -26,12 +27,13 @@ module Git
         end
       end
 
-      def self.connect(git_dir = nil)
+      def self.connect(git_dir = nil, check_version: true)
         db_path = path(git_dir)
         ActiveRecord::Base.establish_connection(
           adapter: "sqlite3",
           database: db_path
         )
+        check_version! if check_version
       end
 
       def self.connect_memory
@@ -48,6 +50,10 @@ module Git
 
       def self.create_schema(with_indexes: true)
         ActiveRecord::Schema.define do
+          create_table :schema_info, if_not_exists: true do |t|
+            t.integer :version, null: false
+          end
+
           create_table :branches, if_not_exists: true do |t|
             t.string :name, null: false
             t.string :last_analyzed_sha
@@ -104,6 +110,7 @@ module Git
           end
         end
 
+        set_version
         create_bulk_indexes if with_indexes
       end
 
@@ -120,6 +127,43 @@ module Git
                        unique: true, name: "idx_snapshots_unique", if_not_exists: true
         conn.add_index :dependency_snapshots, :name, if_not_exists: true
         conn.add_index :dependency_snapshots, :ecosystem, if_not_exists: true
+      end
+
+      def self.stored_version
+        conn = ActiveRecord::Base.connection
+        return nil unless conn.table_exists?(:schema_info)
+
+        result = conn.select_value("SELECT version FROM schema_info LIMIT 1")
+        result&.to_i
+      end
+
+      def self.set_version(version = SCHEMA_VERSION)
+        conn = ActiveRecord::Base.connection
+        conn.execute("DELETE FROM schema_info")
+        conn.execute("INSERT INTO schema_info (version) VALUES (#{version})")
+      end
+
+      def self.needs_upgrade?
+        conn = ActiveRecord::Base.connection
+
+        # No tables at all = fresh database, no upgrade needed
+        return false unless conn.table_exists?(:commits)
+
+        # Has commits table but no schema_info = old database, needs upgrade
+        return true unless conn.table_exists?(:schema_info)
+
+        # Check version
+        stored = stored_version || 0
+        stored < SCHEMA_VERSION
+      end
+
+      def self.check_version!
+        return unless needs_upgrade?
+
+        stored = stored_version || 0
+        $stderr.puts "Database schema is outdated (version #{stored}, current is #{SCHEMA_VERSION})."
+        $stderr.puts "Run 'git pkgs upgrade' to update."
+        exit 1
       end
 
       def self.optimize_for_bulk_writes

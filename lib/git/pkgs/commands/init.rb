@@ -21,7 +21,7 @@ module Git
           end
 
           Database.drop if @options[:force]
-          Database.connect(repo.git_dir)
+          Database.connect(repo.git_dir, check_version: false)
           Database.create_schema(with_indexes: false)
           Database.optimize_for_bulk_writes
 
