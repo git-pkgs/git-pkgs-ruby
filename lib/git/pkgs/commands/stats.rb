@@ -37,8 +37,11 @@ module Git
         end
 
         def collect_stats(branch, branch_name)
+          ecosystem = @options[:ecosystem]
+
           data = {
             branch: branch_name,
+            ecosystem: ecosystem,
             commits_analyzed: branch&.commits&.count || 0,
             commits_with_changes: branch&.commits&.where(has_dependency_changes: true)&.count || 0,
             current_dependencies: {},
@@ -50,6 +53,7 @@ module Git
           if branch&.last_analyzed_sha
             current_commit = Models::Commit.find_by(sha: branch.last_analyzed_sha)
             snapshots = current_commit&.dependency_snapshots || []
+            snapshots = snapshots.where(ecosystem: ecosystem) if ecosystem
 
             data[:current_dependencies] = {
               total: snapshots.count,
@@ -58,22 +62,28 @@ module Git
             }
           end
 
+          changes = Models::DependencyChange.all
+          changes = changes.where(ecosystem: ecosystem) if ecosystem
+
           data[:changes] = {
-            total: Models::DependencyChange.count,
-            by_type: Models::DependencyChange.group(:change_type).count
+            total: changes.count,
+            by_type: changes.group(:change_type).count
           }
 
-          most_changed = Models::DependencyChange
+          most_changed = changes
             .group(:name, :ecosystem)
             .order("count_all DESC")
             .limit(10)
             .count
 
-          data[:most_changed] = most_changed.map do |(name, ecosystem), count|
-            { name: name, ecosystem: ecosystem, changes: count }
+          data[:most_changed] = most_changed.map do |(name, eco), count|
+            { name: name, ecosystem: eco, changes: count }
           end
 
-          data[:manifests] = Models::Manifest.all.map do |manifest|
+          manifests = Models::Manifest.all
+          manifests = manifests.where(ecosystem: ecosystem) if ecosystem
+
+          data[:manifests] = manifests.map do |manifest|
             { path: manifest.path, ecosystem: manifest.ecosystem, changes: manifest.dependency_changes.count }
           end
 
@@ -86,6 +96,7 @@ module Git
           puts
 
           puts "Branch: #{data[:branch]}"
+          puts "Ecosystem: #{data[:ecosystem]}" if data[:ecosystem]
           puts "Commits analyzed: #{data[:commits_analyzed]}"
           puts "Commits with changes: #{data[:commits_with_changes]}"
           puts
@@ -133,9 +144,13 @@ module Git
         end
 
         def output_by_author
-          counts = Models::DependencyChange
+          changes = Models::DependencyChange
             .joins(:commit)
             .where(change_type: "added")
+
+          changes = changes.where(ecosystem: @options[:ecosystem]) if @options[:ecosystem]
+
+          counts = changes
             .group("commits.author_name")
             .order("count_all DESC")
             .limit(@options[:limit] || 20)
@@ -168,6 +183,10 @@ module Git
 
             opts.on("-b", "--branch=NAME", "Branch to analyze") do |v|
               options[:branch] = v
+            end
+
+            opts.on("-e", "--ecosystem=NAME", "Filter by ecosystem") do |v|
+              options[:ecosystem] = v
             end
 
             opts.on("-f", "--format=FORMAT", "Output format (text, json)") do |v|

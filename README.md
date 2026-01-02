@@ -167,7 +167,8 @@ Gemfile (rubygems):
 
 ```bash
 git pkgs stats
-git pkgs stats --by-author  # who added the most dependencies
+git pkgs stats --by-author       # who added the most dependencies
+git pkgs stats --ecosystem=npm   # filter by ecosystem
 ```
 
 Example output:
