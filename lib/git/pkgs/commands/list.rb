@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class List
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -11,26 +13,19 @@ module Git
 
         def run
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
           commit_sha = @options[:commit] || repo.head_sha
           target_commit = Models::Commit.find_by(sha: commit_sha)
 
-          unless target_commit
-            $stderr.puts "Commit #{commit_sha[0, 7]} not found in database"
-            exit 1
-          end
+          error "Commit #{commit_sha[0, 7]} not found in database" unless target_commit
 
           deps = compute_dependencies_at_commit(target_commit, repo)
 
           if deps.empty?
-            puts "No dependencies found"
+            empty_result "No dependencies found"
             return
           end
 

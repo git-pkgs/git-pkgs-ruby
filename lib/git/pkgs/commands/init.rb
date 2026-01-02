@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Init
+        include Output
+
         BATCH_SIZE = 100
         SNAPSHOT_INTERVAL = 20 # Store snapshot every N dependency-changing commits
 
@@ -26,10 +28,7 @@ module Git
           Database.optimize_for_bulk_writes
 
           branch_name = @options[:branch] || repo.default_branch
-          unless repo.branch_exists?(branch_name)
-            $stderr.puts "Branch '#{branch_name}' not found"
-            exit 1
-          end
+          error "Branch '#{branch_name}' not found" unless repo.branch_exists?(branch_name)
 
           branch = Models::Branch.find_or_create(branch_name)
           analyzer = Analyzer.new(repo)

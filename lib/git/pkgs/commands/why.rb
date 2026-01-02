@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Why
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -12,17 +14,10 @@ module Git
         def run
           package_name = @args.shift
 
-          unless package_name
-            $stderr.puts "Usage: git pkgs why <package>"
-            exit 1
-          end
+          error "Usage: git pkgs why <package>" unless package_name
 
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
@@ -40,7 +35,7 @@ module Git
           added_change = added_change.first
 
           unless added_change
-            puts "Package '#{package_name}' not found in dependency history"
+            empty_result "Package '#{package_name}' not found in dependency history"
             return
           end
 

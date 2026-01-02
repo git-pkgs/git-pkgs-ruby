@@ -6,6 +6,8 @@ module Git
   module Pkgs
     module Commands
       class History
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -15,11 +17,7 @@ module Git
           package_name = @args.shift
 
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
@@ -52,11 +50,8 @@ module Git
           end
 
           if changes.empty?
-            if package_name
-              puts "No history found for '#{package_name}'"
-            else
-              puts "No dependency changes found"
-            end
+            msg = package_name ? "No history found for '#{package_name}'" : "No dependency changes found"
+            empty_result msg
             return
           end
 
@@ -163,8 +158,7 @@ module Git
         def parse_time(str)
           Time.parse(str)
         rescue ArgumentError
-          $stderr.puts "Invalid date format: #{str}"
-          exit 1
+          error "Invalid date format: #{str}"
         end
       end
     end

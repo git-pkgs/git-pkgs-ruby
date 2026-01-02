@@ -6,6 +6,8 @@ module Git
   module Pkgs
     module Commands
       class Log
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -13,11 +15,7 @@ module Git
 
         def run
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
@@ -33,7 +31,7 @@ module Git
           commits = commits.limit(@options[:limit] || 20)
 
           if commits.empty?
-            puts "No commits with dependency changes found"
+            empty_result "No commits with dependency changes found"
             return
           end
 
@@ -107,8 +105,7 @@ module Git
         def parse_time(str)
           Time.parse(str)
         rescue ArgumentError
-          $stderr.puts "Invalid date format: #{str}"
-          exit 1
+          error "Invalid date format: #{str}"
         end
 
         def parse_options

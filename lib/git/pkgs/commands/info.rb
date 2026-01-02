@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Info
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -11,11 +13,7 @@ module Git
 
         def run
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           db_path = Database.path(repo.git_dir)
           Database.connect(repo.git_dir)

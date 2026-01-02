@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Diff
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -11,48 +13,27 @@ module Git
 
         def run
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
           from_ref = @options[:from]
           to_ref = @options[:to] || "HEAD"
 
-          unless from_ref
-            $stderr.puts "Usage: git pkgs diff --from=REF [--to=REF]"
-            exit 1
-          end
+          error "Usage: git pkgs diff --from=REF [--to=REF]" unless from_ref
 
           # Resolve git refs (like HEAD~10) to SHAs
           from_sha = repo.rev_parse(from_ref)
           to_sha = repo.rev_parse(to_ref)
 
-          unless from_sha
-            $stderr.puts "Could not resolve '#{from_ref}'"
-            exit 1
-          end
-
-          unless to_sha
-            $stderr.puts "Could not resolve '#{to_ref}'"
-            exit 1
-          end
+          error "Could not resolve '#{from_ref}'" unless from_sha
+          error "Could not resolve '#{to_ref}'" unless to_sha
 
           from_commit = find_or_create_commit(repo, from_sha)
           to_commit = find_or_create_commit(repo, to_sha)
 
-          unless from_commit
-            $stderr.puts "Commit '#{from_sha[0..7]}' not found"
-            exit 1
-          end
-
-          unless to_commit
-            $stderr.puts "Commit '#{to_sha[0..7]}' not found"
-            exit 1
-          end
+          error "Commit '#{from_sha[0..7]}' not found" unless from_commit
+          error "Commit '#{to_sha[0..7]}' not found" unless to_commit
 
           # Get all changes between the two commits
           changes = Models::DependencyChange
@@ -67,7 +48,7 @@ module Git
           end
 
           if changes.empty?
-            puts "No dependency changes between #{from_commit.short_sha} and #{to_commit.short_sha}"
+            empty_result "No dependency changes between #{from_commit.short_sha} and #{to_commit.short_sha}"
             return
           end
 

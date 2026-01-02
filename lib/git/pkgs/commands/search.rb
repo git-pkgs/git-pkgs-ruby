@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Search
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -12,17 +14,10 @@ module Git
         def run
           pattern = @args.first
 
-          unless pattern
-            $stderr.puts "Usage: git pkgs search <pattern>"
-            exit 1
-          end
+          error "Usage: git pkgs search <pattern>" unless pattern
 
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
@@ -43,7 +38,7 @@ module Git
           matches = query.distinct.pluck(:name, :ecosystem)
 
           if matches.empty?
-            puts "No dependencies found matching '#{pattern}'"
+            empty_result "No dependencies found matching '#{pattern}'"
             return
           end
 

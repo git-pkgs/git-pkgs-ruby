@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Show
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -13,27 +15,15 @@ module Git
           ref = @args.shift || "HEAD"
 
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
           sha = repo.rev_parse(ref)
-
-          unless sha
-            $stderr.puts "Could not resolve '#{ref}'"
-            exit 1
-          end
+          error "Could not resolve '#{ref}'" unless sha
 
           commit = find_or_create_commit(repo, sha)
-
-          unless commit
-            $stderr.puts "Commit '#{sha[0..7]}' not found"
-            exit 1
-          end
+          error "Commit '#{sha[0..7]}' not found" unless commit
 
           changes = Models::DependencyChange
             .includes(:commit, :manifest)
@@ -44,7 +34,7 @@ module Git
           end
 
           if changes.empty?
-            puts "No dependency changes in #{commit.short_sha}"
+            empty_result "No dependency changes in #{commit.short_sha}"
             return
           end
 

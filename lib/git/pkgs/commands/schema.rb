@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Schema
+        include Output
+
         FORMATS = %w[text sql json markdown].freeze
 
         def initialize(args)
@@ -13,11 +15,7 @@ module Git
 
         def run
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
           tables = fetch_schema

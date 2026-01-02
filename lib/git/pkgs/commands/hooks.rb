@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Hooks
+        include Output
+
         HOOK_SCRIPT = <<~SCRIPT
           #!/bin/sh
           # git-pkgs auto-update hook

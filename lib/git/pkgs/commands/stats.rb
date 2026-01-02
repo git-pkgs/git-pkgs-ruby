@@ -6,6 +6,8 @@ module Git
   module Pkgs
     module Commands
       class Stats
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -13,11 +15,7 @@ module Git
 
         def run
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
@@ -179,7 +177,7 @@ module Git
             .count
 
           if counts.empty?
-            puts "No dependency additions found"
+            empty_result "No dependency additions found"
             return
           end
 
@@ -200,8 +198,7 @@ module Git
         def parse_time(str)
           Time.parse(str)
         rescue ArgumentError
-          $stderr.puts "Invalid date format: #{str}"
-          exit 1
+          error "Invalid date format: #{str}"
         end
 
         def parse_options

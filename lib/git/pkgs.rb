@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "pkgs/version"
+require_relative "pkgs/output"
 require_relative "pkgs/cli"
 require_relative "pkgs/database"
 require_relative "pkgs/repository"

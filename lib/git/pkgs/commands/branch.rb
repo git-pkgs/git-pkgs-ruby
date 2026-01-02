@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Branch
+        include Output
+
         BATCH_SIZE = 100
         SNAPSHOT_INTERVAL = 20
 
@@ -25,32 +27,20 @@ module Git
           when nil, "-h", "--help"
             print_help
           else
-            $stderr.puts "Unknown subcommand: #{subcommand}"
-            $stderr.puts "Run 'git pkgs branch --help' for usage"
-            exit 1
+            error "Unknown subcommand: #{subcommand}. Run 'git pkgs branch --help' for usage"
           end
         end
 
         def add_branch
           branch_name = @args.shift
-          unless branch_name
-            $stderr.puts "Usage: git pkgs branch add <name>"
-            exit 1
-          end
+          error "Usage: git pkgs branch add <name>" unless branch_name
 
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
-          unless repo.branch_exists?(branch_name)
-            $stderr.puts "Branch '#{branch_name}' not found"
-            exit 1
-          end
+          error "Branch '#{branch_name}' not found" unless repo.branch_exists?(branch_name)
 
           existing = Models::Branch.find_by(name: branch_name)
           if existing
@@ -84,18 +74,14 @@ module Git
 
         def list_branches
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
           branches = Models::Branch.all
 
           if branches.empty?
-            puts "No branches tracked"
+            empty_result "No branches tracked"
             return
           end
 
@@ -110,25 +96,15 @@ module Git
 
         def remove_branch
           branch_name = @args.shift
-          unless branch_name
-            $stderr.puts "Usage: git pkgs branch remove <name>"
-            exit 1
-          end
+          error "Usage: git pkgs branch remove <name>" unless branch_name
 
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
           branch = Models::Branch.find_by(name: branch_name)
-          unless branch
-            $stderr.puts "Branch '#{branch_name}' not tracked"
-            exit 1
-          end
+          error "Branch '#{branch_name}' not tracked" unless branch
 
           # Only delete branch_commits, keep shared commits
           count = branch.branch_commits.count

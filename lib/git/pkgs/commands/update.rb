@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Update
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -11,21 +13,14 @@ module Git
 
         def run
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
           branch_name = @options[:branch] || repo.default_branch
           branch = Models::Branch.find_by(name: branch_name)
 
-          unless branch
-            $stderr.puts "Branch '#{branch_name}' not in database. Run 'git pkgs init --branch=#{branch_name}' first."
-            exit 1
-          end
+          error "Branch '#{branch_name}' not in database. Run 'git pkgs init --branch=#{branch_name}' first." unless branch
 
           since_sha = branch.last_analyzed_sha
           current_sha = repo.branch_target(branch_name)

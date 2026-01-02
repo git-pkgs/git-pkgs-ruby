@@ -4,6 +4,8 @@ module Git
   module Pkgs
     module Commands
       class Tree
+        include Output
+
         def initialize(args)
           @args = args
           @options = parse_options
@@ -11,11 +13,7 @@ module Git
 
         def run
           repo = Repository.new
-
-          unless Database.exists?(repo.git_dir)
-            $stderr.puts "Database not initialized. Run 'git pkgs init' first."
-            exit 1
-          end
+          require_database(repo)
 
           Database.connect(repo.git_dir)
 
@@ -23,10 +21,7 @@ module Git
           commit_sha = @options[:commit] || repo.head_sha
           commit = find_commit_with_snapshot(commit_sha, repo)
 
-          unless commit
-            $stderr.puts "No dependency data found for commit #{commit_sha[0, 7]}"
-            exit 1
-          end
+          error "No dependency data found for commit #{commit_sha[0, 7]}" unless commit
 
           # Get current snapshots
           snapshots = commit.dependency_snapshots.includes(:manifest)
@@ -36,7 +31,7 @@ module Git
           end
 
           if snapshots.empty?
-            puts "No dependencies found"
+            empty_result "No dependencies found"
             return
           end
 
