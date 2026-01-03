@@ -46,7 +46,7 @@ module Git
       QUICK_MANIFEST_REGEX = Regexp.union(
         QUICK_MANIFEST_PATTERNS.map do |pattern|
           if pattern.include?('*')
-            Regexp.new(pattern.gsub('.', '\\.').gsub('*', '.*'))
+            Regexp.new(Regexp.escape(pattern).gsub('\\*', '.*'))
           else
             /(?:^|\/)#{Regexp.escape(pattern)}$/
           end
