@@ -1,4 +1,4 @@
-## [Unreleased]
+## [0.3.0] - 2026-01-03
 
 - Pager support for long output (respects `GIT_PAGER`, `core.pager`, `PAGER`)
 - `--no-pager` option for commands with long output
