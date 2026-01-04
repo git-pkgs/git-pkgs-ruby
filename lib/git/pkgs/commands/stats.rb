@@ -103,6 +103,16 @@ module Git
             { path: manifest.path, ecosystem: manifest.ecosystem, changes: change_counts[manifest.id] || 0 }
           end
 
+          top_authors = changes
+            .where(change_type: "added")
+            .joins(:commit)
+            .group("commits.author_name")
+            .order("count_all DESC")
+            .limit(5)
+            .count
+
+          data[:top_authors] = top_authors.map { |name, count| { name: name, added: count } }
+
           data
         end
 
@@ -158,6 +168,15 @@ module Git
           puts "-" * 14
           data[:manifests].each do |m|
             puts "  #{m[:path]} (#{m[:ecosystem]}): #{m[:changes]} changes"
+          end
+
+          if data[:top_authors]&.any?
+            puts
+            puts "Top Authors (by deps added)"
+            puts "-" * 27
+            data[:top_authors].each do |author|
+              puts "  #{author[:added].to_s.rjust(4)}  #{author[:name]}"
+            end
           end
         end
 

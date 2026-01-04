@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- `git pkgs stats` now shows top authors in default output
+
 ## [0.5.0] - 2026-01-04
 
 - `git pkgs init` now installs git hooks by default (use `--no-hooks` to skip)
