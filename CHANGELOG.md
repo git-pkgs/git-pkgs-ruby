@@ -1,7 +1,14 @@
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-04
+
 - `git pkgs where` command to find where a package is declared in manifest files
 - `git pkgs diff-driver` command for semantic lockfile diffs in `git diff`
+- Ruby 4.0 support
+- Fix branch name retrieval and final snapshot storage in `git pkgs init`
+- Fix `git pkgs info` snapshot coverage output when zero snapshots
+- Fix manifest file pattern matching for wildcard characters
+- Fix co-author name parsing in `git pkgs blame`
 
 ## [0.3.0] - 2026-01-03
 
