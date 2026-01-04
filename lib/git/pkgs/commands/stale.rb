@@ -20,7 +20,7 @@ module Git
           branch_name = @options[:branch] || repo.default_branch
           branch = Models::Branch.find_by(name: branch_name)
 
-          error "No analysis found for branch '#{branch_name}'" unless branch&.last_analyzed_sha
+          error "No analysis found for branch '#{branch_name}'. Run 'git pkgs init' first." unless branch&.last_analyzed_sha
 
           current_commit = Models::Commit.find_by(sha: branch.last_analyzed_sha)
           snapshots = current_commit&.dependency_snapshots&.includes(:manifest) || []

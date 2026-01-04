@@ -27,14 +27,14 @@ module Git
           from_sha = repo.rev_parse(from_ref)
           to_sha = repo.rev_parse(to_ref)
 
-          error "Could not resolve '#{from_ref}'" unless from_sha
-          error "Could not resolve '#{to_ref}'" unless to_sha
+          error "Could not resolve '#{from_ref}'. Check that the ref exists." unless from_sha
+          error "Could not resolve '#{to_ref}'. Check that the ref exists." unless to_sha
 
           from_commit = Models::Commit.find_or_create_from_repo(repo, from_sha)
           to_commit = Models::Commit.find_or_create_from_repo(repo, to_sha)
 
-          error "Commit '#{from_sha[0..7]}' not found" unless from_commit
-          error "Commit '#{to_sha[0..7]}' not found" unless to_commit
+          error "Commit '#{from_sha[0..7]}' not in database. Run 'git pkgs update' to index new commits." unless from_commit
+          error "Commit '#{to_sha[0..7]}' not in database. Run 'git pkgs update' to index new commits." unless to_commit
 
           # Get all changes between the two commits
           changes = Models::DependencyChange

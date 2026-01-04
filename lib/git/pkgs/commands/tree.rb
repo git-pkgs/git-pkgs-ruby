@@ -21,7 +21,7 @@ module Git
           commit_sha = @options[:commit] || repo.head_sha
           commit = find_commit_with_snapshot(commit_sha, repo)
 
-          error "No dependency data found for commit #{commit_sha[0, 7]}" unless commit
+          error "No dependency data for commit #{commit_sha[0, 7]}. Run 'git pkgs update' to index new commits." unless commit
 
           # Get current snapshots
           snapshots = commit.dependency_snapshots.includes(:manifest)

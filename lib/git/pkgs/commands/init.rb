@@ -18,7 +18,7 @@ module Git
           repo = Repository.new
 
           branch_name = @options[:branch] || repo.default_branch
-          error "Branch '#{branch_name}' not found" unless repo.branch_exists?(branch_name)
+          error "Branch '#{branch_name}' not found. Check 'git branch -a' for available branches." unless repo.branch_exists?(branch_name)
 
           if Database.exists?(repo.git_dir) && !@options[:force]
             info "Database already exists. Use --force to rebuild."

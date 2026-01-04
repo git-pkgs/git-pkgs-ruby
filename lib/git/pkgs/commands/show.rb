@@ -20,10 +20,10 @@ module Git
           Database.connect(repo.git_dir)
 
           sha = repo.rev_parse(ref)
-          error "Could not resolve '#{ref}'" unless sha
+          error "Could not resolve '#{ref}'. Check that the ref exists with 'git rev-parse #{ref}'." unless sha
 
           commit = Models::Commit.find_or_create_from_repo(repo, sha)
-          error "Commit '#{sha[0..7]}' not found" unless commit
+          error "Commit '#{sha[0..7]}' not in database. Run 'git pkgs update' to index new commits." unless commit
 
           changes = Models::DependencyChange
             .includes(:commit, :manifest)

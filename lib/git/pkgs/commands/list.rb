@@ -20,7 +20,7 @@ module Git
           commit_sha = @options[:commit] || repo.head_sha
           target_commit = Models::Commit.find_by(sha: commit_sha)
 
-          error "Commit #{commit_sha[0, 7]} not found in database" unless target_commit
+          error "Commit #{commit_sha[0, 7]} not in database. Run 'git pkgs update' to index new commits." unless target_commit
 
           deps = compute_dependencies_at_commit(target_commit, repo)
 

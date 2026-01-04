@@ -12,7 +12,7 @@ module Git
       def parse_time(str)
         Time.parse(str)
       rescue ArgumentError
-        error "Invalid date format: #{str}"
+        error "Invalid date format: #{str}. Use YYYY-MM-DD format."
       end
 
       # Print informational/status message. Suppressed in quiet mode.

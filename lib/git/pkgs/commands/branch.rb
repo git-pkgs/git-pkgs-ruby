@@ -40,7 +40,7 @@ module Git
 
           Database.connect(repo.git_dir)
 
-          error "Branch '#{branch_name}' not found" unless repo.branch_exists?(branch_name)
+          error "Branch '#{branch_name}' not found. Check 'git branch -a' for available branches." unless repo.branch_exists?(branch_name)
 
           existing = Models::Branch.find_by(name: branch_name)
           if existing
@@ -104,7 +104,7 @@ module Git
           Database.connect(repo.git_dir)
 
           branch = Models::Branch.find_by(name: branch_name)
-          error "Branch '#{branch_name}' not tracked" unless branch
+          error "Branch '#{branch_name}' not tracked. Run 'git pkgs branch list' to see tracked branches." unless branch
 
           # Only delete branch_commits, keep shared commits
           count = branch.branch_commits.count
