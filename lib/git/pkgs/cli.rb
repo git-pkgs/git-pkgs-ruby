@@ -5,7 +5,7 @@ require "optparse"
 module Git
   module Pkgs
     class CLI
-      COMMANDS = %w[init update hooks info list tree history search why blame stale stats diff branch show log upgrade schema].freeze
+      COMMANDS = %w[init update hooks info list tree history search why blame stale stats diff branch show log upgrade schema diff-driver].freeze
       ALIASES = { "praise" => "blame", "outdated" => "stale" }.freeze
 
       def self.run(args)
@@ -36,7 +36,9 @@ module Git
 
       def run_command(command)
         command = ALIASES.fetch(command, command)
-        command_class = Commands.const_get(command.capitalize.gsub(/_([a-z])/) { $1.upcase })
+        # Convert kebab-case or snake_case to PascalCase
+        class_name = command.split(/[-_]/).map(&:capitalize).join
+        command_class = Commands.const_get(class_name)
         command_class.new(@args).run
       rescue NameError
         $stderr.puts "Command '#{command}' not yet implemented"

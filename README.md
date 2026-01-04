@@ -328,6 +328,30 @@ jobs:
       - run: git pkgs diff --from=origin/${{ github.base_ref }} --to=HEAD
 ```
 
+### Diff driver
+
+Install a git textconv driver that shows semantic dependency changes instead of raw lockfile diffs:
+
+```bash
+git pkgs diff-driver --install
+```
+
+Now `git diff` on lockfiles shows a sorted dependency list instead of raw lockfile changes:
+
+```diff
+diff --git a/Gemfile.lock b/Gemfile.lock
+--- a/Gemfile.lock
++++ b/Gemfile.lock
+@@ -1,3 +1,3 @@
++kamal 1.0.0
+-puma 5.0.0
++puma 6.0.0
+ rails 7.0.0
+-sidekiq 6.0.0
+```
+
+Use `git diff --no-textconv` to see the raw lockfile diff. To remove: `git pkgs diff-driver --uninstall`
+
 ## Configuration
 
 git-pkgs respects [standard git configuration](https://git-scm.com/docs/git-config).

@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- `git pkgs diff-driver` command for semantic lockfile diffs in `git diff`
+
 ## [0.3.0] - 2026-01-03
 
 - Pager support for long output (respects `GIT_PAGER`, `core.pager`, `PAGER`)
