@@ -745,6 +745,94 @@ class Git::Pkgs::TestLogCommand < Minitest::Test
   end
 end
 
+class Git::Pkgs::TestInfoCommand < Minitest::Test
+  include TestHelpers
+
+  def setup
+    create_test_repo
+    add_file("Gemfile", "source 'https://rubygems.org'\ngem 'rails'")
+    commit("Add rails")
+    @git_dir = File.join(@test_dir, ".git")
+    Git::Pkgs::Database.connect(@git_dir)
+    Git::Pkgs::Database.create_schema
+  end
+
+  def teardown
+    cleanup_test_repo
+  end
+
+  def test_info_with_zero_snapshots_does_not_crash
+    # Create commits with dependency changes but no snapshots
+    sha = SecureRandom.hex(20)
+    Git::Pkgs::Models::Commit.create!(
+      sha: sha,
+      message: "Test commit",
+      author_name: "Test User",
+      author_email: "test@example.com",
+      committed_at: Time.now,
+      has_dependency_changes: true
+    )
+
+    # Should not raise FloatDomainError
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Info.new([]).run
+      end
+    end
+
+    assert_includes output, "Commits with dependency changes: 1"
+    assert_includes output, "Commits with snapshots: 0"
+    assert_includes output, "Coverage: 0.0%"
+    refute_includes output, "1 snapshot per"
+  end
+
+  def test_info_with_snapshots_shows_ratio
+    sha = SecureRandom.hex(20)
+    commit = Git::Pkgs::Models::Commit.create!(
+      sha: sha,
+      message: "Test commit",
+      author_name: "Test User",
+      author_email: "test@example.com",
+      committed_at: Time.now,
+      has_dependency_changes: true
+    )
+
+    manifest = Git::Pkgs::Models::Manifest.create!(
+      path: "Gemfile",
+      ecosystem: "rubygems",
+      kind: "manifest"
+    )
+
+    Git::Pkgs::Models::DependencySnapshot.create!(
+      commit: commit,
+      manifest: manifest,
+      name: "rails",
+      ecosystem: "rubygems",
+      requirement: ">= 0",
+      dependency_type: "runtime"
+    )
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Info.new([]).run
+      end
+    end
+
+    assert_includes output, "Commits with dependency changes: 1"
+    assert_includes output, "Commits with snapshots: 1"
+    assert_includes output, "Coverage: 100.0%"
+  end
+
+  def capture_stdout
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+end
+
 class Git::Pkgs::TestSchemaCommand < Minitest::Test
   include TestHelpers
 

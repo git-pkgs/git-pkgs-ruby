@@ -17,6 +17,9 @@ module Git
         def run
           repo = Repository.new
 
+          branch_name = @options[:branch] || repo.default_branch
+          error "Branch '#{branch_name}' not found" unless repo.branch_exists?(branch_name)
+
           if Database.exists?(repo.git_dir) && !@options[:force]
             puts "Database already exists. Use --force to rebuild."
             return
@@ -26,9 +29,6 @@ module Git
           Database.connect(repo.git_dir, check_version: false)
           Database.create_schema(with_indexes: false)
           Database.optimize_for_bulk_writes
-
-          branch_name = @options[:branch] || repo.default_branch
-          error "Branch '#{branch_name}' not found" unless repo.branch_exists?(branch_name)
 
           branch = Models::Branch.find_or_create(branch_name)
           analyzer = Analyzer.new(repo)
@@ -73,6 +73,7 @@ module Git
           dependency_commit_count = 0
           snapshots_stored = 0
           processed = 0
+          last_processed_sha = nil
 
           flush = lambda do
             return if pending_commits.empty?
@@ -160,6 +161,8 @@ module Git
               position: processed
             }
 
+            last_processed_sha = rugged_commit.oid
+
             if has_changes
               dependency_commit_count += 1
 
@@ -206,13 +209,12 @@ module Git
             flush.call if pending_commits.size >= BATCH_SIZE
           end
 
-          # Always store final snapshot for HEAD
-          if snapshot.any?
-            last_sha = commits.last&.oid
-            if last_sha && !pending_snapshots.any? { |s| s[:sha] == last_sha }
+          # Always store final snapshot for the last processed commit
+          if snapshot.any? && last_processed_sha
+            unless pending_snapshots.any? { |s| s[:sha] == last_processed_sha }
               snapshot.each do |(manifest_path, name), dep_info|
                 pending_snapshots << {
-                  sha: last_sha,
+                  sha: last_processed_sha,
                   manifest_path: manifest_path,
                   name: name,
                   ecosystem: dep_info[:ecosystem],
