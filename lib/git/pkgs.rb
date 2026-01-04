@@ -36,6 +36,7 @@ require_relative "pkgs/commands/log"
 require_relative "pkgs/commands/upgrade"
 require_relative "pkgs/commands/schema"
 require_relative "pkgs/commands/diff_driver"
+require_relative "pkgs/commands/completions"
 
 module Git
   module Pkgs
