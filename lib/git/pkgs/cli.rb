@@ -50,6 +50,7 @@ module Git
       end
 
       def run
+        Git::Pkgs.configure_from_env
         parse_global_options
 
         command = @args.shift
@@ -70,10 +71,23 @@ module Git
 
       def parse_global_options
         while @args.first&.start_with?("-")
-          case @args.first
+          arg = @args.first
+          case arg
           when "-q", "--quiet"
             Git::Pkgs.quiet = true
             @args.shift
+          when /^--git-dir=(.+)$/
+            Git::Pkgs.git_dir = $1
+            @args.shift
+          when "--git-dir"
+            @args.shift
+            Git::Pkgs.git_dir = @args.shift
+          when /^--work-tree=(.+)$/
+            Git::Pkgs.work_tree = $1
+            @args.shift
+          when "--work-tree"
+            @args.shift
+            Git::Pkgs.work_tree = @args.shift
           else
             break
           end
@@ -86,7 +100,9 @@ module Git
         class_name = command.split(/[-_]/).map(&:capitalize).join
         command_class = Commands.const_get(class_name)
         command_class.new(@args).run
-      rescue NameError
+      rescue NameError => e
+        # Only catch NameError for missing command class, not NoMethodError
+        raise unless e.is_a?(NameError) && !e.is_a?(NoMethodError)
         $stderr.puts "Command '#{command}' not yet implemented"
         exit 1
       end
@@ -106,9 +122,11 @@ module Git
         end
 
         puts "Options:"
-        puts "  -h, --help     Show this help message"
-        puts "  -v, --version  Show version"
-        puts "  -q, --quiet    Suppress informational messages"
+        puts "  -h, --help           Show this help message"
+        puts "  -v, --version        Show version"
+        puts "  -q, --quiet          Suppress informational messages"
+        puts "  --git-dir=<path>     Path to the git directory"
+        puts "  --work-tree=<path>   Path to the working tree"
         puts
         puts "Run 'git pkgs <command> -h' for command-specific options."
       end

@@ -8,7 +8,7 @@ module Git
       attr_reader :path
 
       def initialize(path = nil)
-        @path = path || ENV["GIT_DIR"] || Dir.pwd
+        @path = path || Git::Pkgs.git_dir || Git::Pkgs.work_tree || Dir.pwd
         @rugged = Rugged::Repository.new(@path)
       end
 

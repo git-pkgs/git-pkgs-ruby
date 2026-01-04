@@ -44,7 +44,24 @@ module Git
     class NotInGitRepoError < Error; end
 
     class << self
-      attr_accessor :quiet
+      attr_accessor :quiet, :git_dir, :work_tree, :db_path
+
+      def configure_from_env
+        @git_dir ||= presence(ENV["GIT_DIR"])
+        @work_tree ||= presence(ENV["GIT_WORK_TREE"])
+        @db_path ||= presence(ENV["GIT_PKGS_DB"])
+      end
+
+      def reset_config!
+        @quiet = false
+        @git_dir = nil
+        @work_tree = nil
+        @db_path = nil
+      end
+
+      def presence(value)
+        value && !value.empty? ? value : nil
+      end
     end
     self.quiet = false
   end

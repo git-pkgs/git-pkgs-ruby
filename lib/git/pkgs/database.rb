@@ -10,22 +10,21 @@ module Git
       SCHEMA_VERSION = 1
 
       def self.path(git_dir = nil)
-        return ENV["GIT_PKGS_DB"] if ENV["GIT_PKGS_DB"] && !ENV["GIT_PKGS_DB"].empty?
+        return Git::Pkgs.db_path if Git::Pkgs.db_path
 
         git_dir ||= find_git_dir
         File.join(git_dir, DB_FILE)
       end
 
       def self.find_git_dir
-        # Respect GIT_DIR environment variable
-        if ENV["GIT_DIR"] && !ENV["GIT_DIR"].empty?
-          git_dir = ENV["GIT_DIR"]
-          return git_dir if File.directory?(git_dir)
+        if Git::Pkgs.git_dir
+          return Git::Pkgs.git_dir if File.directory?(Git::Pkgs.git_dir)
 
-          raise NotInGitRepoError, "GIT_DIR '#{git_dir}' does not exist"
+          raise NotInGitRepoError, "GIT_DIR '#{Git::Pkgs.git_dir}' does not exist"
         end
 
-        dir = Dir.pwd
+        # Start from work_tree if set, otherwise current directory
+        dir = Git::Pkgs.work_tree || Dir.pwd
         loop do
           git_dir = File.join(dir, ".git")
           return git_dir if File.directory?(git_dir)
