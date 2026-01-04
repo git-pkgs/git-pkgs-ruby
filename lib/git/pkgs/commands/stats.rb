@@ -91,11 +91,16 @@ module Git
           manifests = Models::Manifest.all
           manifests = manifests.where(ecosystem: ecosystem) if ecosystem
 
+          manifest_ids = manifests.pluck(:id)
+          change_counts_query = Models::DependencyChange
+            .joins(:commit)
+            .where(manifest_id: manifest_ids)
+          change_counts_query = change_counts_query.where("commits.committed_at >= ?", since_time) if since_time
+          change_counts_query = change_counts_query.where("commits.committed_at <= ?", until_time) if until_time
+          change_counts = change_counts_query.group(:manifest_id).count
+
           data[:manifests] = manifests.map do |manifest|
-            manifest_changes = manifest.dependency_changes.joins(:commit)
-            manifest_changes = manifest_changes.where("commits.committed_at >= ?", since_time) if since_time
-            manifest_changes = manifest_changes.where("commits.committed_at <= ?", until_time) if until_time
-            { path: manifest.path, ecosystem: manifest.ecosystem, changes: manifest_changes.count }
+            { path: manifest.path, ecosystem: manifest.ecosystem, changes: change_counts[manifest.id] || 0 }
           end
 
           data

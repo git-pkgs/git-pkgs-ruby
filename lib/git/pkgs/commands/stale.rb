@@ -34,19 +34,38 @@ module Git
             return
           end
 
+          # Batch fetch all changes for current dependencies
+          snapshot_keys = snapshots.map { |s| [s.name, s.manifest_id] }.to_set
+          manifest_ids = snapshots.map(&:manifest_id).uniq
+          names = snapshots.map(&:name).uniq
+
+          all_changes = Models::DependencyChange
+            .includes(:commit)
+            .where(manifest_id: manifest_ids, name: names)
+            .to_a
+
+          # Group by (name, manifest_id) and find latest by committed_at
+          latest_by_key = {}
+          all_changes.each do |change|
+            key = [change.name, change.manifest_id]
+            next unless snapshot_keys.include?(key)
+
+            existing = latest_by_key[key]
+            if existing.nil? || change.commit.committed_at > existing.commit.committed_at
+              latest_by_key[key] = change
+            end
+          end
+
           # Find last update for each dependency
           outdated_data = []
+          now = Time.now
 
           snapshots.each do |snapshot|
-            last_change = Models::DependencyChange
-              .includes(:commit)
-              .where(name: snapshot.name, manifest: snapshot.manifest)
-              .order("commits.committed_at DESC")
-              .first
+            last_change = latest_by_key[[snapshot.name, snapshot.manifest_id]]
 
             next unless last_change
 
-            days_since_update = ((Time.now - last_change.commit.committed_at) / 86400).to_i
+            days_since_update = ((now - last_change.commit.committed_at) / 86400).to_i
 
             outdated_data << {
               name: snapshot.name,

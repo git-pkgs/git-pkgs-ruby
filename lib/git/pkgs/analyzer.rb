@@ -251,7 +251,7 @@ module Git
       end
 
       def parse_manifest_by_oid(blob_oid, manifest_path)
-        cache_key = "#{blob_oid}:#{manifest_path}"
+        cache_key = [blob_oid, manifest_path]
 
         if @blob_cache.key?(cache_key)
           @blob_cache[cache_key][:hits] += 1

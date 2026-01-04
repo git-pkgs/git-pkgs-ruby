@@ -35,16 +35,34 @@ module Git
             return
           end
 
+          # Batch fetch all "added" changes for current dependencies
+          snapshot_keys = snapshots.map { |s| [s.name, s.manifest_id] }.to_set
+          manifest_ids = snapshots.map(&:manifest_id).uniq
+          names = snapshots.map(&:name).uniq
+
+          all_added_changes = Models::DependencyChange
+            .includes(:commit)
+            .added
+            .where(manifest_id: manifest_ids, name: names)
+            .to_a
+
+          # Group by (name, manifest_id) and find earliest by committed_at
+          added_by_key = {}
+          all_added_changes.each do |change|
+            key = [change.name, change.manifest_id]
+            next unless snapshot_keys.include?(key)
+
+            existing = added_by_key[key]
+            if existing.nil? || change.commit.committed_at < existing.commit.committed_at
+              added_by_key[key] = change
+            end
+          end
+
           # For each current dependency, find who added it
           blame_data = []
 
           snapshots.each do |snapshot|
-            added_change = Models::DependencyChange
-              .includes(:commit)
-              .where(name: snapshot.name, manifest: snapshot.manifest)
-              .added
-              .order("commits.committed_at ASC")
-              .first
+            added_change = added_by_key[[snapshot.name, snapshot.manifest_id]]
 
             next unless added_change
 

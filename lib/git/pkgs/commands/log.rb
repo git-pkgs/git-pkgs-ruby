@@ -18,6 +18,7 @@ module Git
           Database.connect(repo.git_dir)
 
           commits = Models::Commit
+            .includes(:dependency_changes)
             .where(has_dependency_changes: true)
             .order(committed_at: :desc)
 
@@ -42,8 +43,8 @@ module Git
 
         def output_text(commits)
           commits.each do |commit|
-            changes = commit.dependency_changes
-            changes = changes.where(ecosystem: @options[:ecosystem]) if @options[:ecosystem]
+            changes = commit.dependency_changes.to_a
+            changes = changes.select { |c| c.ecosystem == @options[:ecosystem] } if @options[:ecosystem]
             next if changes.empty?
 
             puts "#{commit.short_sha} #{commit.message&.lines&.first&.strip}"
@@ -75,8 +76,8 @@ module Git
           require "json"
 
           data = commits.map do |commit|
-            changes = commit.dependency_changes
-            changes = changes.where(ecosystem: @options[:ecosystem]) if @options[:ecosystem]
+            changes = commit.dependency_changes.to_a
+            changes = changes.select { |c| c.ecosystem == @options[:ecosystem] } if @options[:ecosystem]
 
             {
               sha: commit.sha,

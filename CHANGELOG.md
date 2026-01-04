@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - `git pkgs init` now installs git hooks by default (use `--no-hooks` to skip)
+- Fix N+1 queries in `blame`, `stale`, `stats`, and `log` commands
 
 ## [0.4.0] - 2026-01-04
 

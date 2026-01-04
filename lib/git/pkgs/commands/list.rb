@@ -90,7 +90,7 @@ module Git
           # Replay changes from snapshot to target
           if snapshot_commit && snapshot_commit.id != target_commit.id
             changes = Models::DependencyChange
-              .joins(:commit, :manifest)
+              .joins(:commit)
               .where(commits: { id: branch.commit_ids })
               .where("commits.committed_at > ? AND commits.committed_at <= ?",
                      snapshot_commit.committed_at, target_commit.committed_at)
