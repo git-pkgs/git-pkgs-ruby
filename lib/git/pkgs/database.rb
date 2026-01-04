@@ -58,6 +58,7 @@ module Git
       end
 
       def self.create_schema(with_indexes: true)
+        ActiveRecord::Schema.verbose = false
         ActiveRecord::Schema.define do
           create_table :schema_info, if_not_exists: true do |t|
             t.integer :version, null: false
