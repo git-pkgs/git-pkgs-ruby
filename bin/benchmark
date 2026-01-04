@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+BENCHMARKS = {
+  "full" => "Full pipeline benchmark",
+  "detailed" => "Detailed phase breakdown",
+  "bulk" => "Bulk insert benchmark",
+  "db" => "DB operation breakdown",
+  "commands" => "CLI command benchmarks"
+}.freeze
+
+def usage
+  puts "Usage: bin/benchmark <type> [repo_path] [sample_size]"
+  puts "       bin/benchmark commands --repo /path/to/repo [-n iterations]"
+  puts
+  puts "Types:"
+  BENCHMARKS.each do |name, desc|
+    puts "  #{name.ljust(10)} #{desc}"
+  end
+  puts
+  puts "Example: bin/benchmark full /path/to/repo 500"
+  exit 1
+end
+
+type = ARGV.shift
+usage if type.nil? || type == "-h" || type == "--help"
+usage unless BENCHMARKS.key?(type)
+
+script = File.expand_path("../benchmark/#{type}.rb", __dir__)
+exec("ruby", script, *ARGV)

@@ -9,7 +9,7 @@ The database schema stores:
 - Dependency changes (added/modified/removed) with before/after versions
 - Periodic snapshots of full dependency state for efficient point-in-time queries
 
-See [docs/internals.md](docs/internals.md) for a detailed architecture overview and [docs/schema.md](docs/schema.md) for the database schema.
+See the [docs](docs/) folder for architecture details, database schema, and benchmarking tools.
 
 Since the database is just SQLite, you can query it directly for ad-hoc analysis:
 
