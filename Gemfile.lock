@@ -40,7 +40,7 @@ GEM
     date (3.5.1)
     deb_control (0.0.1)
     drb (2.2.3)
-    ecosystems-bibliothecary (14.2.0)
+    ecosystems-bibliothecary (14.3.0)
       bundler
       commander
       csv
@@ -155,7 +155,7 @@ CHECKSUMS
   date (3.5.1) sha256=750d06384d7b9c15d562c76291407d89e368dda4d4fff957eb94962d325a0dc0
   deb_control (0.0.1) sha256=4ddb6c8ece9c57d93e45edc20340f72fcbff8a1d65b5daa8a45b5d990cd51532
   drb (2.2.3) sha256=0b00d6fdb50995fe4a45dea13663493c841112e4068656854646f418fda13373
-  ecosystems-bibliothecary (14.2.0) sha256=6aac4ab2d6f7baad15167330fa585f6b2a6896e83250d87ab5a6e5ae5e45204d
+  ecosystems-bibliothecary (14.3.0) sha256=1af37ebdb84a77366a0ade57da4c311602a7acee04b341c06d3449b10e0ad43d
   erb (6.0.1) sha256=28ecdd99c5472aebd5674d6061e3c6b0a45c049578b071e5a52c2a7f13c197e5
   ethon (0.15.0) sha256=0809805a035bc10f54162ca99f15ded49e428e0488bcfe1c08c821e18261a74d
   ffi (1.17.3-aarch64-linux-gnu) sha256=28ad573df26560f0aedd8a90c3371279a0b2bd0b4e834b16a2baa10bd7a97068
