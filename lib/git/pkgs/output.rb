@@ -14,6 +14,12 @@ module Git
       rescue ArgumentError
         error "Invalid date format: #{str}"
       end
+
+      # Print informational/status message. Suppressed in quiet mode.
+      def info(msg)
+        puts msg unless Git::Pkgs.quiet
+      end
+
       # Print error message and exit with code 1.
       # Use for user errors (bad input, invalid refs) and system errors (db missing).
       # When format is :json, outputs JSON to stdout; otherwise outputs text to stderr.

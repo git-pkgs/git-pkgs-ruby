@@ -42,5 +42,10 @@ module Git
     class Error < StandardError; end
     class NotInitializedError < Error; end
     class NotInGitRepoError < Error; end
+
+    class << self
+      attr_accessor :quiet
+    end
+    self.quiet = false
   end
 end

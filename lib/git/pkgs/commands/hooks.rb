@@ -40,7 +40,7 @@ module Git
             if File.exist?(hook_path)
               content = File.read(hook_path)
               if content.include?("git-pkgs")
-                puts "Hook #{hook_name} already contains git-pkgs"
+                info "Hook #{hook_name} already contains git-pkgs"
                 next
               end
 
@@ -48,15 +48,15 @@ module Git
                 f.puts "\n# git-pkgs auto-update"
                 f.puts "git pkgs update 2>/dev/null || true"
               end
-              puts "Appended git-pkgs to existing #{hook_name} hook"
+              info "Appended git-pkgs to existing #{hook_name} hook"
             else
               File.write(hook_path, HOOK_SCRIPT)
               File.chmod(0o755, hook_path)
-              puts "Created #{hook_name} hook"
+              info "Created #{hook_name} hook"
             end
           end
 
-          puts "Hooks installed successfully"
+          info "Hooks installed successfully"
         end
 
         def uninstall_hooks(repo)
@@ -70,7 +70,7 @@ module Git
 
             if content.strip == HOOK_SCRIPT.strip
               File.delete(hook_path)
-              puts "Removed #{hook_name} hook"
+              info "Removed #{hook_name} hook"
             elsif content.include?("git-pkgs")
               new_content = content.lines.reject { |line|
                 line.include?("git-pkgs") || line.include?("git pkgs")
@@ -79,15 +79,15 @@ module Git
 
               if new_content.strip.empty? || new_content.strip == "#!/bin/sh"
                 File.delete(hook_path)
-                puts "Removed #{hook_name} hook"
+                info "Removed #{hook_name} hook"
               else
                 File.write(hook_path, new_content)
-                puts "Removed git-pkgs from #{hook_name} hook"
+                info "Removed git-pkgs from #{hook_name} hook"
               end
             end
           end
 
-          puts "Hooks uninstalled successfully"
+          info "Hooks uninstalled successfully"
         end
 
         def show_status(repo)

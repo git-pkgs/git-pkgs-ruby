@@ -50,6 +50,8 @@ module Git
       end
 
       def run
+        parse_global_options
+
         command = @args.shift
 
         case command
@@ -63,6 +65,18 @@ module Git
           $stderr.puts "Unknown command: #{command}"
           $stderr.puts "Run 'git pkgs help' for usage"
           exit 1
+        end
+      end
+
+      def parse_global_options
+        while @args.first&.start_with?("-")
+          case @args.first
+          when "-q", "--quiet"
+            Git::Pkgs.quiet = true
+            @args.shift
+          else
+            break
+          end
         end
       end
 
@@ -94,6 +108,7 @@ module Git
         puts "Options:"
         puts "  -h, --help     Show this help message"
         puts "  -v, --version  Show version"
+        puts "  -q, --quiet    Suppress informational messages"
         puts
         puts "Run 'git pkgs <command> -h' for command-specific options."
       end

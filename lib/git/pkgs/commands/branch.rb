@@ -44,8 +44,8 @@ module Git
 
           existing = Models::Branch.find_by(name: branch_name)
           if existing
-            puts "Branch '#{branch_name}' already tracked (#{existing.commits.count} commits)"
-            puts "Use 'git pkgs update' to refresh"
+            info "Branch '#{branch_name}' already tracked (#{existing.commits.count} commits)"
+            info "Use 'git pkgs update' to refresh"
             return
           end
 
@@ -54,7 +54,7 @@ module Git
           branch = Models::Branch.create!(name: branch_name)
           analyzer = Analyzer.new(repo)
 
-          puts "Analyzing branch: #{branch_name}"
+          info "Analyzing branch: #{branch_name}"
 
           walker = repo.walk(branch_name)
           commits = walker.to_a
@@ -66,10 +66,10 @@ module Git
 
           Database.optimize_for_reads
 
-          puts "\rDone!#{' ' * 20}"
-          puts "Analyzed #{total} commits"
-          puts "Found #{stats[:dependency_commits]} commits with dependency changes"
-          puts "Stored #{stats[:snapshots_stored]} snapshots"
+          info "\rDone!#{' ' * 20}"
+          info "Analyzed #{total} commits"
+          info "Found #{stats[:dependency_commits]} commits with dependency changes"
+          info "Stored #{stats[:snapshots_stored]} snapshots"
         end
 
         def list_branches
@@ -111,7 +111,7 @@ module Git
           branch.branch_commits.delete_all
           branch.destroy
 
-          puts "Removed branch '#{branch_name}' (#{count} branch-commit links)"
+          info "Removed branch '#{branch_name}' (#{count} branch-commit links)"
         end
 
         def bulk_process_commits(commits, branch, analyzer, total, repo)
@@ -196,7 +196,7 @@ module Git
 
           commits.each do |rugged_commit|
             processed += 1
-            print "\rProcessing commit #{processed}/#{total}..." if processed % 50 == 0 || processed == total
+            print "\rProcessing commit #{processed}/#{total}..." if !Git::Pkgs.quiet && (processed % 50 == 0 || processed == total)
 
             next if rugged_commit.parents.length > 1
 

@@ -21,13 +21,13 @@ module Git
           current = Database::SCHEMA_VERSION
 
           if stored >= current
-            puts "Database is up to date (version #{current})"
+            info "Database is up to date (version #{current})"
             return
           end
 
-          puts "Upgrading database from version #{stored} to #{current}..."
-          puts "This requires re-indexing the repository."
-          puts
+          info "Upgrading database from version #{stored} to #{current}..."
+          info "This requires re-indexing the repository."
+          info ""
 
           # Run init --force
           Init.new(["--force"]).run

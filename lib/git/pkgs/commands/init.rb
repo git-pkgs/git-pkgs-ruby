@@ -21,7 +21,7 @@ module Git
           error "Branch '#{branch_name}' not found" unless repo.branch_exists?(branch_name)
 
           if Database.exists?(repo.git_dir) && !@options[:force]
-            puts "Database already exists. Use --force to rebuild."
+            info "Database already exists. Use --force to rebuild."
             return
           end
 
@@ -33,7 +33,7 @@ module Git
           branch = Models::Branch.find_or_create(branch_name)
           analyzer = Analyzer.new(repo)
 
-          puts "Analyzing branch: #{branch_name}"
+          info "Analyzing branch: #{branch_name}"
 
           walker = repo.walk(branch_name, @options[:since])
           commits = walker.to_a
@@ -43,17 +43,17 @@ module Git
 
           branch.update(last_analyzed_sha: repo.branch_target(branch_name))
 
-          print "\rCreating indexes..."
+          print "\rCreating indexes..." unless Git::Pkgs.quiet
           Database.create_bulk_indexes
           Database.optimize_for_reads
 
           cache_stats = analyzer.cache_stats
 
-          puts "\rDone!#{' ' * 20}"
-          puts "Analyzed #{total} commits"
-          puts "Found #{stats[:dependency_commits]} commits with dependency changes"
-          puts "Stored #{stats[:snapshots_stored]} snapshots (every #{SNAPSHOT_INTERVAL} changes)"
-          puts "Blob cache: #{cache_stats[:cached_blobs]} unique blobs, #{cache_stats[:blobs_with_hits]} had cache hits"
+          info "\rDone!#{' ' * 20}"
+          info "Analyzed #{total} commits"
+          info "Found #{stats[:dependency_commits]} commits with dependency changes"
+          info "Stored #{stats[:snapshots_stored]} snapshots (every #{SNAPSHOT_INTERVAL} changes)"
+          info "Blob cache: #{cache_stats[:cached_blobs]} unique blobs, #{cache_stats[:blobs_with_hits]} had cache hits"
 
           unless @options[:no_hooks]
             Commands::Hooks.new(["--install"]).run
@@ -137,7 +137,7 @@ module Git
 
           commits.each do |rugged_commit|
             processed += 1
-            print "\rProcessing commit #{processed}/#{total}..." if processed % 50 == 0 || processed == total
+            print "\rProcessing commit #{processed}/#{total}..." if !Git::Pkgs.quiet && (processed % 50 == 0 || processed == total)
 
             next if rugged_commit.parents.length > 1 # skip merge commits
 

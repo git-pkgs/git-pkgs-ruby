@@ -100,12 +100,12 @@ module Git
             end
           end
 
-          puts "Installed textconv driver for lockfiles."
-          puts "  git config: diff.pkgs.textconv = git-pkgs diff-driver"
-          puts "  .gitattributes: #{new_entries.count} lockfile patterns added"
-          puts
-          puts "Now 'git diff' on lockfiles shows dependency changes."
-          puts "Use 'git diff --no-textconv' to see raw diff."
+          info "Installed textconv driver for lockfiles."
+          info "  git config: diff.pkgs.textconv = git-pkgs diff-driver"
+          info "  .gitattributes: #{new_entries.count} lockfile patterns added"
+          info ""
+          info "Now 'git diff' on lockfiles shows dependency changes."
+          info "Use 'git diff --no-textconv' to see raw diff."
         end
 
         def uninstall_driver
@@ -118,7 +118,7 @@ module Git
             File.write(gitattributes_path, lines.join)
           end
 
-          puts "Uninstalled diff driver."
+          info "Uninstalled diff driver."
         end
 
         def read_file(path)
