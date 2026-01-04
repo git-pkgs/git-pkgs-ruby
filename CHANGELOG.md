@@ -1,12 +1,14 @@
 ## [Unreleased]
 
+## [0.5.0] - 2026-01-04
+
 - `git pkgs init` now installs git hooks by default (use `--no-hooks` to skip)
 - Parallel prefetching of git diffs for ~2x speedup on large repositories (1500+ commits)
 - Performance tuning via environment variables: `GIT_PKGS_BATCH_SIZE`, `GIT_PKGS_SNAPSHOT_INTERVAL`, `GIT_PKGS_THREADS`
+- `git pkgs completions` command for bash/zsh tab completion
 - Fix N+1 queries in `blame`, `stale`, `stats`, and `log` commands
 - Configuration via git config: `pkgs.ecosystems`, `pkgs.ignoredDirs`, `pkgs.ignoredFiles`
 - `git pkgs info --ecosystems` to show available ecosystems and their status
-- `git pkgs completions` command for bash/zsh tab completion
 - `-q, --quiet` flag to suppress informational messages
 - `git pkgs diff` now supports `commit..commit` range syntax
 - `--git-dir` and `--work-tree` global options (also respects `GIT_WORK_TREE` env var)
