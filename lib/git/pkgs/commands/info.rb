@@ -12,6 +12,11 @@ module Git
         end
 
         def run
+          if @options[:ecosystems]
+            output_ecosystems
+            return
+          end
+
           repo = Repository.new
           require_database(repo)
 
@@ -77,6 +82,61 @@ module Git
           end
         end
 
+        def output_ecosystems
+          require "bibliothecary"
+
+          all_ecosystems = Bibliothecary::Parsers.constants.map do |c|
+            parser = Bibliothecary::Parsers.const_get(c)
+            parser.platform_name if parser.respond_to?(:platform_name)
+          end.compact.sort
+
+          configured = Config.ecosystems
+          filtering = configured.any?
+
+          puts "Available Ecosystems"
+          puts "=" * 40
+          puts
+
+          enabled_ecos = []
+          disabled_ecos = []
+
+          all_ecosystems.each do |eco|
+            if Config.filter_ecosystem?(eco)
+              remote = Config.remote_ecosystem?(eco)
+              disabled_ecos << { name: eco, remote: remote }
+            else
+              enabled_ecos << eco
+            end
+          end
+
+          puts "Enabled:"
+          if enabled_ecos.any?
+            enabled_ecos.each { |eco| puts "  #{Color.green(eco)}" }
+          else
+            puts "  (none)"
+          end
+
+          puts
+          puts "Disabled:"
+          if disabled_ecos.any?
+            disabled_ecos.each do |eco|
+              suffix = eco[:remote] ? " (remote)" : ""
+              puts "  #{eco[:name]}#{suffix}"
+            end
+          else
+            puts "  (none)"
+          end
+
+          puts
+          if filtering
+            puts "Filtering: only #{configured.join(', ')}"
+          else
+            puts "All local ecosystems enabled"
+          end
+          puts "Remote ecosystems require explicit opt-in"
+          puts "Configure with: git config --add pkgs.ecosystems <name>"
+        end
+
         def format_size(bytes)
           units = %w[B KB MB GB]
           unit_index = 0
@@ -94,7 +154,11 @@ module Git
           options = {}
 
           parser = OptionParser.new do |opts|
-            opts.banner = "Usage: git pkgs info"
+            opts.banner = "Usage: git pkgs info [options]"
+
+            opts.on("--ecosystems", "Show available ecosystems and filter status") do
+              options[:ecosystems] = true
+            end
 
             opts.on("-h", "--help", "Show this help") do
               puts opts

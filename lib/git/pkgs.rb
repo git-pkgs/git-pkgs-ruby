@@ -3,6 +3,7 @@
 require_relative "pkgs/version"
 require_relative "pkgs/output"
 require_relative "pkgs/color"
+require_relative "pkgs/config"
 require_relative "pkgs/cli"
 require_relative "pkgs/database"
 require_relative "pkgs/repository"

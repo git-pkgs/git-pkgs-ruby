@@ -379,6 +379,21 @@ git-pkgs respects [standard git configuration](https://git-scm.com/docs/git-conf
 
 **Pager** follows git's precedence: `GIT_PAGER` env, `core.pager` config, `PAGER` env, then `less -FRSX`. Use `--no-pager` flag or `git config core.pager cat` to disable.
 
+**Ecosystem filtering** lets you limit which package ecosystems are tracked:
+
+```bash
+git config --add pkgs.ecosystems rubygems
+git config --add pkgs.ecosystems npm
+git pkgs info --ecosystems  # show enabled/disabled ecosystems
+```
+
+**Ignored paths** let you skip directories or files from analysis:
+
+```bash
+git config --add pkgs.ignoredDirs third_party
+git config --add pkgs.ignoredFiles test/fixtures/package.json
+```
+
 **Environment variables:**
 
 - `GIT_DIR` - git directory location (standard git variable)
@@ -399,7 +414,11 @@ Optimizations:
 
 git-pkgs uses [ecosystems-bibliothecary](https://github.com/ecosyste-ms/bibliothecary) for parsing, supporting:
 
-Actions, Anaconda, BentoML, Bower, Cargo, CocoaPods, Cog, CPAN, CRAN, CycloneDX, Docker, Dub, DVC, Elm, Go, Haxelib, Homebrew, Julia, Maven, Meteor, MLflow, npm, NuGet, Ollama, Packagist, Pub, PyPI, RubyGems, Shards, SPDX, Vcpkg
+Actions, BentoML, Bower, Cargo, CocoaPods, Cog, Conda, CPAN, CRAN, Docker, Dub, DVC, Elm, Go, Haxelib, Homebrew, Julia, Maven, Meteor, MLflow, npm, NuGet, Ollama, Packagist, Pub, PyPI, RubyGems, Shards, Vcpkg
+
+Some ecosystems require remote parsing services and are disabled by default: Carthage, Clojars, Hackage, Hex, SwiftPM. Enable with `git config --add pkgs.ecosystems <name>`.
+
+SBOM formats (CycloneDX, SPDX) are not supported as they duplicate information from the actual lockfiles.
 
 ## Contributing
 

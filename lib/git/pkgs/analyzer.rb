@@ -24,8 +24,6 @@ module Git
         Podfile Podfile.lock *.podspec *.podspec.json
         packages.config packages.lock.json Project.json Project.lock.json
         *.nuspec paket.lock *.csproj project.assets.json
-        cyclonedx.xml cyclonedx.json *.cdx.xml *.cdx.json
-        *.spdx *.spdx.json
         bower.json bentofile.yaml
         META.json META.yml
         environment.yml environment.yaml
@@ -56,6 +54,7 @@ module Git
       def initialize(repository)
         @repository = repository
         @blob_cache = {}
+        Config.configure_bibliothecary
       end
 
       # Quick check if any paths might be manifests (fast regex check)
@@ -262,6 +261,7 @@ module Git
         return nil unless content
 
         result = Bibliothecary.analyse_file(manifest_path, content).first
+        result = nil if result && Config.filter_ecosystem?(result[:platform])
         @blob_cache[cache_key] = { result: result, hits: 0 }
         result
       end
