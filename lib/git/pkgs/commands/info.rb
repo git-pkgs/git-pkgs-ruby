@@ -69,7 +69,11 @@ module Git
           puts "  Commits with snapshots: #{snapshot_commits}"
           if total_dep_commits > 0
             ratio = (snapshot_commits.to_f / total_dep_commits * 100).round(1)
-            puts "  Coverage: #{ratio}% (1 snapshot per ~#{(total_dep_commits.to_f / snapshot_commits).round(0)} changes)"
+            if snapshot_commits > 0
+              puts "  Coverage: #{ratio}% (1 snapshot per ~#{(total_dep_commits / snapshot_commits)} changes)"
+            else
+              puts "  Coverage: #{ratio}%"
+            end
           end
         end
 
