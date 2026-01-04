@@ -70,6 +70,41 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     cleanup_test_repo
   end
 
+  def test_parse_range_argument_with_dotdot
+    cmd = Git::Pkgs::Commands::Diff.new(["main..feature"])
+    from_ref, to_ref = cmd.send(:parse_range_argument)
+    assert_equal "main", from_ref
+    assert_equal "feature", to_ref
+  end
+
+  def test_parse_range_argument_with_trailing_dotdot
+    cmd = Git::Pkgs::Commands::Diff.new(["main.."])
+    from_ref, to_ref = cmd.send(:parse_range_argument)
+    assert_equal "main", from_ref
+    assert_equal "HEAD", to_ref
+  end
+
+  def test_parse_range_argument_with_single_ref
+    cmd = Git::Pkgs::Commands::Diff.new(["HEAD~10"])
+    from_ref, to_ref = cmd.send(:parse_range_argument)
+    assert_equal "HEAD~10", from_ref
+    assert_equal "HEAD", to_ref
+  end
+
+  def test_parse_range_argument_with_no_args
+    cmd = Git::Pkgs::Commands::Diff.new([])
+    from_ref, to_ref = cmd.send(:parse_range_argument)
+    assert_nil from_ref
+    assert_nil to_ref
+  end
+
+  def test_parse_range_argument_ignores_flags
+    cmd = Git::Pkgs::Commands::Diff.new(["--ecosystem=npm"])
+    from_ref, to_ref = cmd.send(:parse_range_argument)
+    assert_nil from_ref
+    assert_nil to_ref
+  end
+
   def test_find_or_create_from_repo_finds_existing_commit
     repo = Git::Pkgs::Repository.new(@test_dir)
     sha = repo.head_sha

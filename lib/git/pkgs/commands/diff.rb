@@ -17,10 +17,11 @@ module Git
 
           Database.connect(repo.git_dir)
 
-          from_ref = @options[:from]
-          to_ref = @options[:to] || "HEAD"
+          from_ref, to_ref = parse_range_argument
+          from_ref ||= @options[:from]
+          to_ref ||= @options[:to] || "HEAD"
 
-          error "Usage: git pkgs diff --from=REF [--to=REF]" unless from_ref
+          error "Usage: git pkgs diff <commit>..<commit> or git pkgs diff --from=REF [--to=REF]" unless from_ref
 
           # Resolve git refs (like HEAD~10) to SHAs
           from_sha = repo.rev_parse(from_ref)
@@ -98,13 +99,36 @@ module Git
           puts "Summary: #{added_count} #{removed_count} #{modified_count}"
         end
 
+        def parse_range_argument
+          return [nil, nil] if @args.empty?
+
+          arg = @args.first
+          return [nil, nil] if arg.start_with?("-")
+
+          if arg.include?("..")
+            @args.shift
+            parts = arg.split("..", 2)
+            [parts[0], parts[1].empty? ? "HEAD" : parts[1]]
+          else
+            # Single ref means "from that ref to HEAD"
+            @args.shift
+            [arg, "HEAD"]
+          end
+        end
+
         def parse_options
           options = {}
 
           parser = OptionParser.new do |opts|
-            opts.banner = "Usage: git pkgs diff --from=REF [--to=REF] [options]"
+            opts.banner = "Usage: git pkgs diff [<from>..<to>] [options]"
+            opts.separator ""
+            opts.separator "Examples:"
+            opts.separator "  git pkgs diff main..feature"
+            opts.separator "  git pkgs diff HEAD~10"
+            opts.separator "  git pkgs diff --from=v1.0 --to=v2.0"
+            opts.separator ""
 
-            opts.on("-f", "--from=REF", "Start commit (required)") do |v|
+            opts.on("-f", "--from=REF", "Start commit") do |v|
               options[:from] = v
             end
 
