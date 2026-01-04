@@ -55,7 +55,7 @@ module Git
           puts "Stored #{stats[:snapshots_stored]} snapshots (every #{SNAPSHOT_INTERVAL} changes)"
           puts "Blob cache: #{cache_stats[:cached_blobs]} unique blobs, #{cache_stats[:blobs_with_hits]} had cache hits"
 
-          if @options[:hooks]
+          unless @options[:no_hooks]
             Commands::Hooks.new(["--install"]).run
           end
         end
@@ -249,8 +249,8 @@ module Git
               options[:force] = true
             end
 
-            opts.on("--hooks", "Install git hooks for auto-updating") do
-              options[:hooks] = true
+            opts.on("--no-hooks", "Skip installing git hooks") do
+              options[:no_hooks] = true
             end
 
             opts.on("-h", "--help", "Show this help") do

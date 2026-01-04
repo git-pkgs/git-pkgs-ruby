@@ -43,7 +43,7 @@ Options:
 - `--branch=NAME` - analyze a specific branch (default: default branch)
 - `--since=SHA` - start analysis from a specific commit
 - `--force` - rebuild the database from scratch
-- `--hooks` - install git hooks for auto-updating
+- `--no-hooks` - skip installing git hooks (hooks are installed by default)
 
 Example output:
 ```
@@ -287,16 +287,18 @@ Like `git log` but only shows commits that changed dependencies, with the change
 
 ### Keep database updated
 
-After the initial analysis, you can incrementally update the database with new commits:
+After the initial analysis, the database updates automatically via git hooks installed during init. You can also update manually:
 
 ```bash
 git pkgs update
 ```
 
-You can also install git hooks to update automatically after commits and merges:
+To manage hooks separately:
 
 ```bash
-git pkgs hooks --install
+git pkgs hooks              # show hook status
+git pkgs hooks --install    # install hooks
+git pkgs hooks --uninstall  # remove hooks
 ```
 
 ### Upgrading

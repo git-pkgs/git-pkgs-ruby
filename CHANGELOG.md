@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- `git pkgs init` now installs git hooks by default (use `--no-hooks` to skip)
+
 ## [0.4.0] - 2026-01-04
 
 - `git pkgs where` command to find where a package is declared in manifest files
