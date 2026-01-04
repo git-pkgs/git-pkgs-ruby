@@ -6,6 +6,7 @@
 - Fix N+1 queries in `blame`, `stale`, `stats`, and `log` commands
 - Configuration via git config: `pkgs.ecosystems`, `pkgs.ignoredDirs`, `pkgs.ignoredFiles`
 - `git pkgs info --ecosystems` to show available ecosystems and their status
+- `git pkgs completions` command for bash/zsh tab completion
 - `-q, --quiet` flag to suppress informational messages
 - `git pkgs diff` now supports `commit..commit` range syntax
 - `--git-dir` and `--work-tree` global options (also respects `GIT_WORK_TREE` env var)

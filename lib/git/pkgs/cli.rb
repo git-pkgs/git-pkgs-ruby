@@ -14,7 +14,8 @@ module Git
           "info" => "Show database size and row counts",
           "branch" => "Manage tracked branches",
           "schema" => "Show database schema",
-          "diff-driver" => "Install git textconv driver for lockfile diffs"
+          "diff-driver" => "Install git textconv driver for lockfile diffs",
+          "completions" => "Generate shell completions"
         },
         "Query" => {
           "list" => "List dependencies at a commit",

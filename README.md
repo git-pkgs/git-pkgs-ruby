@@ -371,6 +371,21 @@ diff --git a/Gemfile.lock b/Gemfile.lock
 
 Use `git diff --no-textconv` to see the raw lockfile diff. To remove: `git pkgs diff-driver --uninstall`
 
+### Shell completions
+
+Enable tab completion for commands:
+
+```bash
+# Bash: add to ~/.bashrc
+eval "$(git pkgs completions bash)"
+
+# Zsh: add to ~/.zshrc
+eval "$(git pkgs completions zsh)"
+
+# Or auto-install to standard completion directories
+git pkgs completions install
+```
+
 ## Configuration
 
 git-pkgs respects [standard git configuration](https://git-scm.com/docs/git-config).
