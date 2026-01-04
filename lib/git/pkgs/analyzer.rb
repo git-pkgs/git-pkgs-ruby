@@ -98,7 +98,7 @@ module Git
         # Process added manifest files
         added_manifests.each do |manifest_path|
           result = parse_manifest_at_commit(rugged_commit, manifest_path)
-          next unless result
+          next unless result && result[:dependencies]
 
           result[:dependencies].each do |dep|
             changes << {
@@ -202,7 +202,7 @@ module Git
         # Process removed manifest files
         removed_manifests.each do |manifest_path|
           result = parse_manifest_before_commit(rugged_commit, manifest_path)
-          next unless result
+          next unless result && result[:dependencies]
 
           result[:dependencies].each do |dep|
             changes << {
