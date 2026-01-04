@@ -42,6 +42,7 @@ module Git
         def initialize(args)
           @args = args
           @options = parse_options
+          Config.configure_bibliothecary
         end
 
         def run
@@ -132,6 +133,7 @@ module Git
 
           result = Bibliothecary.analyse_file(path, content).first
           return {} unless result
+          return {} if Config.filter_ecosystem?(result[:platform])
 
           result[:dependencies].map { |d| [d[:name], d] }.to_h
         rescue StandardError

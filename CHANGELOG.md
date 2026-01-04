@@ -2,6 +2,8 @@
 
 - `git pkgs init` now installs git hooks by default (use `--no-hooks` to skip)
 - Fix N+1 queries in `blame`, `stale`, `stats`, and `log` commands
+- Configuration via git config: `pkgs.ecosystems`, `pkgs.ignoredDirs`, `pkgs.ignoredFiles`
+- `git pkgs info --ecosystems` to show available ecosystems and their status
 
 ## [0.4.0] - 2026-01-04
 
