@@ -258,6 +258,23 @@ git pkgs show HEAD~5       # relative ref
 
 Like `git show` but for dependencies. Shows what was added, modified, or removed in a single commit.
 
+### Find where a package is declared
+
+```bash
+git pkgs where rails           # find in manifest files
+git pkgs where lodash -C 2     # show 2 lines of context
+git pkgs where express --ecosystem=npm
+```
+
+Shows which manifest files declare a package and the exact line:
+
+```
+Gemfile:5:gem "rails", "~> 7.0"
+Gemfile.lock:142:    rails (7.0.8)
+```
+
+Like `grep` but scoped to manifest files that git-pkgs knows about.
+
 ### List commits with dependency changes
 
 ```bash

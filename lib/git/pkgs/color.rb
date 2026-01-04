@@ -74,6 +74,7 @@ module Git
       def self.green(text)   = colorize(text, :green)
       def self.yellow(text)  = colorize(text, :yellow)
       def self.blue(text)    = colorize(text, :blue)
+      def self.magenta(text) = colorize(text, :magenta)
       def self.cyan(text)    = colorize(text, :cyan)
       def self.bold(text)    = colorize(text, :bold)
       def self.dim(text)     = colorize(text, :dim)

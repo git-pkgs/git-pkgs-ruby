@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- `git pkgs where` command to find where a package is declared in manifest files
 - `git pkgs diff-driver` command for semantic lockfile diffs in `git diff`
 
 ## [0.3.0] - 2026-01-03

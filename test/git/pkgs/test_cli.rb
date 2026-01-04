@@ -833,6 +833,106 @@ class Git::Pkgs::TestInfoCommand < Minitest::Test
   end
 end
 
+class Git::Pkgs::TestWhereCommand < Minitest::Test
+  include TestHelpers
+
+  def setup
+    create_test_repo
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "puma" => "~> 5.0" }))
+    commit("Add dependencies")
+    @git_dir = File.join(@test_dir, ".git")
+    Git::Pkgs::Database.connect(@git_dir)
+    Git::Pkgs::Database.create_schema
+
+    # Create branch and snapshot
+    repo = Git::Pkgs::Repository.new(@test_dir)
+    Git::Pkgs::Models::Branch.create!(name: repo.default_branch, last_analyzed_sha: repo.head_sha)
+    rugged_commit = repo.lookup(repo.head_sha)
+    commit_record = Git::Pkgs::Models::Commit.find_or_create_from_rugged(rugged_commit)
+
+    manifest = Git::Pkgs::Models::Manifest.create!(
+      path: "Gemfile",
+      ecosystem: "rubygems",
+      kind: "manifest"
+    )
+
+    Git::Pkgs::Models::DependencySnapshot.create!(
+      commit: commit_record,
+      manifest: manifest,
+      name: "rails",
+      ecosystem: "rubygems",
+      requirement: "~> 7.0"
+    )
+
+    Git::Pkgs::Models::DependencySnapshot.create!(
+      commit: commit_record,
+      manifest: manifest,
+      name: "puma",
+      ecosystem: "rubygems",
+      requirement: "~> 5.0"
+    )
+  end
+
+  def teardown
+    cleanup_test_repo
+  end
+
+  def test_where_finds_package_in_manifest
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Where.new(["rails"]).run
+      end
+    end
+
+    assert_includes output, "Gemfile"
+    assert_includes output, "rails"
+  end
+
+  def test_where_shows_line_number
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Where.new(["rails"]).run
+      end
+    end
+
+    # Output format: path:line:content
+    assert_match(/Gemfile:\d+:.*rails/, output)
+  end
+
+  def test_where_not_found
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Where.new(["nonexistent"]).run
+      end
+    end
+
+    assert_includes output, "not found"
+  end
+
+  def test_where_json_format
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Where.new(["rails", "--format=json"]).run
+      end
+    end
+
+    data = JSON.parse(output)
+    assert_equal 1, data.length
+    assert_equal "Gemfile", data.first["path"]
+    assert data.first["line"].is_a?(Integer)
+    assert_includes data.first["content"], "rails"
+  end
+
+  def capture_stdout
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+end
+
 class Git::Pkgs::TestSchemaCommand < Minitest::Test
   include TestHelpers
 

@@ -5,7 +5,7 @@ require "optparse"
 module Git
   module Pkgs
     class CLI
-      COMMANDS = %w[init update hooks info list tree history search why blame stale stats diff branch show log upgrade schema diff-driver].freeze
+      COMMANDS = %w[init update hooks info list tree history search where why blame stale stats diff branch show log upgrade schema diff-driver].freeze
       ALIASES = { "praise" => "blame", "outdated" => "stale" }.freeze
 
       def self.run(args)
@@ -59,6 +59,7 @@ module Git
             tree      Show dependency tree grouped by type
             history   Show the history of a package
             search    Find a dependency across all history
+            where     Show where a package appears in manifest files
             why       Explain why a dependency exists
             blame     Show who added each dependency
             stale     Show dependencies that haven't been updated
