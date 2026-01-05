@@ -416,7 +416,7 @@ git config --add pkgs.ignoredFiles test/fixtures/package.json
 
 ## Performance
 
-Benchmarked on an M1 MacBook Pro analyzing [octobox](https://github.com/octobox/octobox) (5193 commits, 8 years of history): init takes about 5 seconds at roughly 1000 commits/sec, producing an 8.3 MB database. About half the commits (2439) had dependency changes.
+Benchmarked on an M1 MacBook Pro analyzing [octobox](https://github.com/octobox/octobox) (5193 commits, 8 years of history): init takes about 5 seconds at roughly 1000 commits/sec, producing a 4.8 MB database. About half the commits (2439) had dependency changes.
 
 Optimizations:
 - Bulk inserts with transaction batching (500 commits per transaction)
