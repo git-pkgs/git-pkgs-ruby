@@ -3,11 +3,9 @@
 module Git
   module Pkgs
     module Models
-      class BranchCommit < ActiveRecord::Base
-        belongs_to :branch
-        belongs_to :commit
-
-        validates :branch_id, uniqueness: { scope: :commit_id }
+      class BranchCommit < Sequel::Model
+        many_to_one :branch
+        many_to_one :commit
       end
     end
   end

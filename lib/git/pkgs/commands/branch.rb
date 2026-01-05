@@ -50,7 +50,7 @@ module Git
 
           error "Branch '#{branch_name}' not found. Check 'git branch -a' for available branches." unless repo.branch_exists?(branch_name)
 
-          existing = Models::Branch.find_by(name: branch_name)
+          existing = Models::Branch.first(name: branch_name)
           if existing
             info "Branch '#{branch_name}' already tracked (#{existing.commits.count} commits)"
             info "Use 'git pkgs update' to refresh"
@@ -59,7 +59,7 @@ module Git
 
           Database.optimize_for_bulk_writes
 
-          branch = Models::Branch.create!(name: branch_name)
+          branch = Models::Branch.create(name: branch_name)
           analyzer = Analyzer.new(repo)
 
           info "Analyzing branch: #{branch_name}"
@@ -100,7 +100,7 @@ module Git
           puts "Tracked branches:"
           branches.each do |branch|
             commit_count = branch.commits.count
-            dep_commits = branch.commits.where(has_dependency_changes: true).count
+            dep_commits = branch.commits_dataset.where(has_dependency_changes: true).count
             last_sha = branch.last_analyzed_sha&.slice(0, 7) || "none"
             puts "  #{branch.name}: #{commit_count} commits (#{dep_commits} with deps), last: #{last_sha}"
           end
@@ -115,13 +115,13 @@ module Git
 
           Database.connect(repo.git_dir)
 
-          branch = Models::Branch.find_by(name: branch_name)
+          branch = Models::Branch.first(name: branch_name)
           error "Branch '#{branch_name}' not tracked. Run 'git pkgs branch list' to see tracked branches." unless branch
 
           # Only delete branch_commits, keep shared commits
           count = branch.branch_commits.count
-          branch.branch_commits.delete_all
-          branch.destroy
+          branch.branch_commits_dataset.delete
+          branch.delete
 
           info "Removed branch '#{branch_name}' (#{count} branch-commit links)"
         end
@@ -143,28 +143,27 @@ module Git
           flush = lambda do
             return if pending_commits.empty?
 
-            ActiveRecord::Base.transaction do
-              # Use upsert for commits since they may already exist from other branches
+            Database.db.transaction do
+              # Use insert with on_conflict for commits since they may already exist from other branches
               if pending_commits.any?
-                Models::Commit.upsert_all(
-                  pending_commits,
-                  unique_by: :sha
-                )
+                Models::Commit.dataset
+                  .insert_conflict(target: :sha, update: { has_dependency_changes: Sequel[:excluded][:has_dependency_changes] })
+                  .multi_insert(pending_commits)
               end
 
               commit_ids = Models::Commit
                 .where(sha: pending_commits.map { |c| c[:sha] })
-                .pluck(:sha, :id).to_h
+                .select_hash(:sha, :id)
 
               if pending_branch_commits.any?
                 branch_commit_records = pending_branch_commits.map do |bc|
                   { branch_id: bc[:branch_id], commit_id: commit_ids[bc[:sha]], position: bc[:position] }
                 end
-                Models::BranchCommit.insert_all(branch_commit_records)
+                Models::BranchCommit.dataset.multi_insert(branch_commit_records)
               end
 
               if pending_changes.any?
-                manifest_ids = Models::Manifest.pluck(:path, :id).to_h
+                manifest_ids = Models::Manifest.select_hash(:path, :id)
                 change_records = pending_changes.map do |c|
                   {
                     commit_id: commit_ids[c[:sha]],
@@ -179,11 +178,11 @@ module Git
                     updated_at: now
                   }
                 end
-                Models::DependencyChange.insert_all(change_records)
+                Models::DependencyChange.dataset.multi_insert(change_records)
               end
 
               if pending_snapshots.any?
-                manifest_ids ||= Models::Manifest.pluck(:path, :id).to_h
+                manifest_ids ||= Models::Manifest.select_hash(:path, :id)
                 snapshot_records = pending_snapshots.map do |s|
                   {
                     commit_id: commit_ids[s[:sha]],
@@ -196,7 +195,7 @@ module Git
                     updated_at: now
                   }
                 end
-                Models::DependencySnapshot.insert_all(snapshot_records)
+                Models::DependencySnapshot.dataset.multi_insert(snapshot_records)
               end
             end
 

@@ -23,19 +23,19 @@ module Git
 
           # Search for dependencies matching the pattern
           query = Models::DependencyChange
-            .joins(:manifest)
-            .where("dependency_changes.name LIKE ?", "%#{pattern}%")
+            .join(:manifests, id: :manifest_id)
+            .where(Sequel.like(Sequel[:dependency_changes][:name], "%#{pattern}%"))
 
           if @options[:ecosystem]
-            query = query.where(ecosystem: @options[:ecosystem])
+            query = query.where(Sequel[:dependency_changes][:ecosystem] => @options[:ecosystem])
           end
 
           if @options[:direct]
-            query = query.where(manifests: { kind: "manifest" })
+            query = query.where(Sequel[:manifests][:kind] => "manifest")
           end
 
           # Get unique dependency names
-          matches = query.distinct.pluck(:name, :ecosystem)
+          matches = query.distinct.select_map([Sequel[:dependency_changes][:name], Sequel[:dependency_changes][:ecosystem]])
 
           if matches.empty?
             empty_result "No dependencies found matching '#{pattern}'"
@@ -70,12 +70,14 @@ module Git
           results = matches.map do |name, platform|
             changes = Models::DependencyChange
               .where(name: name, ecosystem: platform)
-              .includes(:commit)
-              .order("commits.committed_at ASC")
+              .eager(:commit)
+              .association_join(:commit)
+              .order(Sequel[:commits][:committed_at])
+              .all
 
             first = changes.first
             last = changes.last
-            current = changes.where(change_type: %w[added modified]).last
+            current = changes.select { |c| %w[added modified].include?(c.change_type) }.last
 
             {
               name: name,
@@ -94,8 +96,10 @@ module Git
         def dependency_summary(name, platform)
           changes = Models::DependencyChange
             .where(name: name, ecosystem: platform)
-            .includes(:commit)
-            .order("commits.committed_at ASC")
+            .eager(:commit)
+            .association_join(:commit)
+            .order(Sequel[:commits][:committed_at])
+            .all
 
           first = changes.first
           last = changes.last
@@ -106,7 +110,7 @@ module Git
           if last.change_type == "removed"
             parts << "removed #{last.commit.committed_at.strftime('%Y-%m-%d')}"
           else
-            current = changes.where(change_type: %w[added modified]).last
+            current = changes.select { |c| %w[added modified].include?(c.change_type) }.last
             parts << "current: #{current&.requirement || 'unknown'}"
           end
 

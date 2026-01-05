@@ -71,7 +71,7 @@ class Git::Pkgs::TestModels < Minitest::Test
       kind: "manifest"
     )
 
-    Git::Pkgs::Models::DependencyChange.create!(
+    Git::Pkgs::Models::DependencyChange.create(
       commit: commit,
       manifest: manifest,
       name: "rails",
@@ -80,7 +80,7 @@ class Git::Pkgs::TestModels < Minitest::Test
       requirement: "~> 7.0"
     )
 
-    Git::Pkgs::Models::DependencyChange.create!(
+    Git::Pkgs::Models::DependencyChange.create(
       commit: commit,
       manifest: manifest,
       name: "puma",
@@ -102,7 +102,7 @@ class Git::Pkgs::TestModels < Minitest::Test
     branch = Git::Pkgs::Models::Branch.find_or_create("main")
     commit = Git::Pkgs::Models::Commit.find_or_create_from_rugged(rugged_commit)
 
-    Git::Pkgs::Models::BranchCommit.create!(
+    Git::Pkgs::Models::BranchCommit.create(
       branch: branch,
       commit: commit,
       position: 1

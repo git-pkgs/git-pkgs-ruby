@@ -26,12 +26,14 @@ module Git
           error "Commit '#{sha[0..7]}' not in database. Run 'git pkgs update' to index new commits." unless commit
 
           changes = Models::DependencyChange
-            .includes(:commit, :manifest)
+            .eager(:commit, :manifest)
             .where(commit_id: commit.id)
 
           if @options[:ecosystem]
             changes = changes.where(ecosystem: @options[:ecosystem])
           end
+
+          changes = changes.all
 
           if changes.empty?
             empty_result "No dependency changes in #{commit.short_sha}"

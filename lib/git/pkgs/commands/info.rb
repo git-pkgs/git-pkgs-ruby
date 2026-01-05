@@ -67,7 +67,7 @@ module Git
           puts "-" * 40
           total_dep_commits = Models::Commit.where(has_dependency_changes: true).count
           snapshot_commits = Models::Commit
-            .joins(:dependency_snapshots)
+            .join(:dependency_snapshots, commit_id: :id)
             .distinct
             .count
           puts "  Commits with dependency changes: #{total_dep_commits}"

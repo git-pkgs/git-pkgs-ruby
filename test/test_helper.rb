@@ -13,8 +13,6 @@ require "minitest/autorun"
 require "fileutils"
 require "tmpdir"
 
-ActiveRecord::Migration.verbose = false
-
 module TestHelpers
   def create_test_repo
     @test_dir = Dir.mktmpdir("git-pkgs-test")
@@ -27,6 +25,7 @@ module TestHelpers
   end
 
   def cleanup_test_repo
+    Git::Pkgs::Database.disconnect
     FileUtils.rm_rf(@test_dir) if @test_dir && File.exist?(@test_dir)
   end
 
@@ -63,5 +62,30 @@ module TestHelpers
       "version" => "1.0.0",
       "dependencies" => deps
     })
+  end
+
+  def capture_stdout
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+end
+
+# Base test class for tests that use the database
+class Git::Pkgs::DatabaseTest < Minitest::Test
+  include TestHelpers
+
+  def setup
+    create_test_repo
+    @git_dir = File.join(@test_dir, ".git")
+    Git::Pkgs::Database.connect(@git_dir)
+    Git::Pkgs::Database.create_schema
+  end
+
+  def teardown
+    cleanup_test_repo
   end
 end

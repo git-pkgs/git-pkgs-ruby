@@ -33,32 +33,29 @@ module Git
         end
 
         def fetch_schema
-          conn = ActiveRecord::Base.connection
+          db = Database.db
           tables = {}
 
-          conn.tables.sort.each do |table_name|
-            next if table_name == "ar_internal_metadata"
-            next if table_name == "schema_migrations"
-
-            columns = conn.columns(table_name).map do |col|
+          db.tables.sort.each do |table_name|
+            columns = db.schema(table_name).map do |name, col_info|
               {
-                name: col.name,
-                type: col.type,
-                sql_type: col.sql_type,
-                null: col.null,
-                default: col.default
+                name: name.to_s,
+                type: col_info[:type],
+                sql_type: col_info[:db_type],
+                null: col_info[:allow_null],
+                default: col_info[:default]
               }
             end
 
-            indexes = conn.indexes(table_name).map do |idx|
+            indexes = db.indexes(table_name).map do |name, idx_info|
               {
-                name: idx.name,
-                columns: idx.columns,
-                unique: idx.unique
+                name: name.to_s,
+                columns: idx_info[:columns].map(&:to_s),
+                unique: idx_info[:unique]
               }
             end
 
-            tables[table_name] = { columns: columns, indexes: indexes }
+            tables[table_name.to_s] = { columns: columns, indexes: indexes }
           end
 
           tables
@@ -72,7 +69,7 @@ module Git
             info[:columns].each do |col|
               nullable = col[:null] ? "NULL" : "NOT NULL"
               default = col[:default] ? " DEFAULT #{col[:default]}" : ""
-              puts "  #{col[:name].ljust(25)} #{col[:sql_type].ljust(15)} #{nullable}#{default}"
+              puts "  #{col[:name].ljust(25)} #{col[:sql_type].to_s.ljust(15)} #{nullable}#{default}"
             end
 
             if info[:indexes].any?
@@ -89,16 +86,16 @@ module Git
         end
 
         def output_sql(tables)
-          conn = ActiveRecord::Base.connection
+          db = Database.db
 
           tables.each do |table_name, info|
-            sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='#{table_name}'").first
-            puts sql["sql"] + ";" if sql
+            sql = db.fetch("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", table_name).first
+            puts sql[:sql] + ";" if sql
             puts
 
             info[:indexes].each do |idx|
-              idx_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='index' AND name='#{idx[:name]}'").first
-              puts idx_sql["sql"] + ";" if idx_sql && idx_sql["sql"]
+              idx_sql = db.fetch("SELECT sql FROM sqlite_master WHERE type='index' AND name=?", idx[:name]).first
+              puts idx_sql[:sql] + ";" if idx_sql && idx_sql[:sql]
             end
 
             puts if info[:indexes].any?

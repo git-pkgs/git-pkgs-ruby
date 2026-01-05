@@ -18,12 +18,12 @@ module Git
           Database.connect(repo.git_dir)
 
           branch_name = @options[:branch] || repo.default_branch
-          branch = Models::Branch.find_by(name: branch_name)
+          branch = Models::Branch.first(name: branch_name)
 
           error "No analysis found for branch '#{branch_name}'. Run 'git pkgs init' first." unless branch&.last_analyzed_sha
 
-          current_commit = Models::Commit.find_by(sha: branch.last_analyzed_sha)
-          snapshots = current_commit&.dependency_snapshots&.includes(:manifest) || []
+          current_commit = Models::Commit.first(sha: branch.last_analyzed_sha)
+          snapshots = current_commit&.dependency_snapshots&.eager(:manifest) || []
 
           if @options[:ecosystem]
             snapshots = snapshots.where(ecosystem: @options[:ecosystem])
@@ -40,7 +40,7 @@ module Git
           names = snapshots.map(&:name).uniq
 
           all_changes = Models::DependencyChange
-            .includes(:commit)
+            .eager(:commit)
             .where(manifest_id: manifest_ids, name: names)
             .to_a
 

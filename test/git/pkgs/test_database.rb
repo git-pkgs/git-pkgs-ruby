@@ -35,12 +35,13 @@ class Git::Pkgs::TestDatabase < Minitest::Test
     Git::Pkgs::Database.connect(@git_dir)
     Git::Pkgs::Database.create_schema
 
-    assert ActiveRecord::Base.connection.table_exists?(:branches)
-    assert ActiveRecord::Base.connection.table_exists?(:commits)
-    assert ActiveRecord::Base.connection.table_exists?(:branch_commits)
-    assert ActiveRecord::Base.connection.table_exists?(:manifests)
-    assert ActiveRecord::Base.connection.table_exists?(:dependency_changes)
-    assert ActiveRecord::Base.connection.table_exists?(:dependency_snapshots)
+    db = Git::Pkgs::Database.db
+    assert db.table_exists?(:branches)
+    assert db.table_exists?(:commits)
+    assert db.table_exists?(:branch_commits)
+    assert db.table_exists?(:manifests)
+    assert db.table_exists?(:dependency_changes)
+    assert db.table_exists?(:dependency_snapshots)
   end
 
   def test_drop_removes_database

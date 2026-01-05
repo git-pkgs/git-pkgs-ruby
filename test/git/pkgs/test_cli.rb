@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "stringio"
+require "securerandom"
 
 class Git::Pkgs::TestCLI < Minitest::Test
   include TestHelpers
@@ -110,7 +111,7 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     sha = repo.head_sha
 
     # Create commit in database first
-    Git::Pkgs::Models::Commit.create!(
+    Git::Pkgs::Models::Commit.create(
       sha: sha,
       message: "Test",
       author_name: "Test",
@@ -129,14 +130,14 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     sha = repo.head_sha
 
     # Commit doesn't exist in database yet
-    assert_nil Git::Pkgs::Models::Commit.find_by(sha: sha)
+    assert_nil Git::Pkgs::Models::Commit.first(sha: sha)
 
     result = Git::Pkgs::Models::Commit.find_or_create_from_repo(repo, sha)
 
     assert result
     assert_equal sha, result.sha
     # Verify it was persisted
-    assert Git::Pkgs::Models::Commit.find_by(sha: sha)
+    assert Git::Pkgs::Models::Commit.first(sha: sha)
   end
 
   def test_find_or_create_from_repo_returns_nil_for_invalid_sha
@@ -148,24 +149,15 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
   end
 end
 
-class Git::Pkgs::TestShowCommand < Minitest::Test
-  include TestHelpers
-
+class Git::Pkgs::TestShowCommand < Git::Pkgs::DatabaseTest
   def setup
-    create_test_repo
+    super
     add_file("Gemfile", "source 'https://rubygems.org'\ngem 'rails'")
     commit("Add rails")
     @first_sha = get_head_sha
     add_file("Gemfile", "source 'https://rubygems.org'\ngem 'rails'\ngem 'puma'")
     commit("Add puma")
     @second_sha = get_head_sha
-    @git_dir = File.join(@test_dir, ".git")
-    Git::Pkgs::Database.connect(@git_dir)
-    Git::Pkgs::Database.create_schema
-  end
-
-  def teardown
-    cleanup_test_repo
   end
 
   def test_show_displays_changes_for_commit
@@ -246,7 +238,7 @@ class Git::Pkgs::TestShowCommand < Minitest::Test
   end
 
   def create_commit_with_changes(sha, changes)
-    commit = Git::Pkgs::Models::Commit.create!(
+    commit = Git::Pkgs::Models::Commit.create(
       sha: sha,
       message: "Test commit",
       author_name: "Test User",
@@ -255,14 +247,14 @@ class Git::Pkgs::TestShowCommand < Minitest::Test
       has_dependency_changes: true
     )
 
-    manifest = Git::Pkgs::Models::Manifest.create!(
+    manifest = Git::Pkgs::Models::Manifest.create(
       path: "Gemfile",
       ecosystem: "rubygems",
       kind: "manifest"
     )
 
     changes.each do |change|
-      Git::Pkgs::Models::DependencyChange.create!(
+      Git::Pkgs::Models::DependencyChange.create(
         commit: commit,
         manifest: manifest,
         name: change[:name],
@@ -398,7 +390,7 @@ class Git::Pkgs::TestHistoryCommand < Minitest::Test
 
   def create_commit_with_author(name, email, changes)
     sha = SecureRandom.hex(20)
-    commit = Git::Pkgs::Models::Commit.create!(
+    commit = Git::Pkgs::Models::Commit.create(
       sha: sha,
       message: "Test commit",
       author_name: name,
@@ -407,14 +399,14 @@ class Git::Pkgs::TestHistoryCommand < Minitest::Test
       has_dependency_changes: true
     )
 
-    manifest = Git::Pkgs::Models::Manifest.find_or_create_by!(
+    manifest = Git::Pkgs::Models::Manifest.find_or_create(
       path: "Gemfile",
       ecosystem: "rubygems",
       kind: "manifest"
     )
 
     changes.each do |change|
-      Git::Pkgs::Models::DependencyChange.create!(
+      Git::Pkgs::Models::DependencyChange.create(
         commit: commit,
         manifest: manifest,
         name: change[:name],
@@ -430,7 +422,7 @@ class Git::Pkgs::TestHistoryCommand < Minitest::Test
 
   def create_commit_at(time, changes)
     sha = SecureRandom.hex(20)
-    commit = Git::Pkgs::Models::Commit.create!(
+    commit = Git::Pkgs::Models::Commit.create(
       sha: sha,
       message: "Test commit",
       author_name: "Test User",
@@ -439,14 +431,14 @@ class Git::Pkgs::TestHistoryCommand < Minitest::Test
       has_dependency_changes: true
     )
 
-    manifest = Git::Pkgs::Models::Manifest.find_or_create_by!(
+    manifest = Git::Pkgs::Models::Manifest.find_or_create(
       path: "Gemfile",
       ecosystem: "rubygems",
       kind: "manifest"
     )
 
     changes.each do |change|
-      Git::Pkgs::Models::DependencyChange.create!(
+      Git::Pkgs::Models::DependencyChange.create(
         commit: commit,
         manifest: manifest,
         name: change[:name],
@@ -607,7 +599,7 @@ class Git::Pkgs::TestStatsCommand < Minitest::Test
 
   def create_commit_with_author(name, email, changes, committed_at: Time.now)
     sha = SecureRandom.hex(20)
-    commit = Git::Pkgs::Models::Commit.create!(
+    commit = Git::Pkgs::Models::Commit.create(
       sha: sha,
       message: "Test commit",
       author_name: name,
@@ -616,14 +608,14 @@ class Git::Pkgs::TestStatsCommand < Minitest::Test
       has_dependency_changes: true
     )
 
-    manifest = Git::Pkgs::Models::Manifest.find_or_create_by!(
+    manifest = Git::Pkgs::Models::Manifest.find_or_create(
       path: "Gemfile",
       ecosystem: "rubygems",
       kind: "manifest"
     )
 
     changes.each do |change|
-      Git::Pkgs::Models::DependencyChange.create!(
+      Git::Pkgs::Models::DependencyChange.create(
         commit: commit,
         manifest: manifest,
         name: change[:name],
@@ -647,20 +639,11 @@ class Git::Pkgs::TestStatsCommand < Minitest::Test
   end
 end
 
-class Git::Pkgs::TestLogCommand < Minitest::Test
-  include TestHelpers
-
+class Git::Pkgs::TestLogCommand < Git::Pkgs::DatabaseTest
   def setup
-    create_test_repo
+    super
     add_file("Gemfile", "source 'https://rubygems.org'\ngem 'rails'")
     commit("Add rails")
-    @git_dir = File.join(@test_dir, ".git")
-    Git::Pkgs::Database.connect(@git_dir)
-    Git::Pkgs::Database.create_schema
-  end
-
-  def teardown
-    cleanup_test_repo
   end
 
   def test_log_shows_commits_with_changes
@@ -737,7 +720,7 @@ class Git::Pkgs::TestLogCommand < Minitest::Test
 
   def create_commit_with_changes(message, changes, author_name: "Test User", author_email: "test@example.com")
     sha = SecureRandom.hex(20)
-    commit = Git::Pkgs::Models::Commit.create!(
+    commit = Git::Pkgs::Models::Commit.create(
       sha: sha,
       message: message,
       author_name: author_name,
@@ -746,14 +729,14 @@ class Git::Pkgs::TestLogCommand < Minitest::Test
       has_dependency_changes: true
     )
 
-    manifest = Git::Pkgs::Models::Manifest.find_or_create_by!(
+    manifest = Git::Pkgs::Models::Manifest.find_or_create(
       path: "Gemfile",
       ecosystem: "rubygems",
       kind: "manifest"
     )
 
     changes.each do |change|
-      Git::Pkgs::Models::DependencyChange.create!(
+      Git::Pkgs::Models::DependencyChange.create(
         commit: commit,
         manifest: manifest,
         name: change[:name],
@@ -765,15 +748,6 @@ class Git::Pkgs::TestLogCommand < Minitest::Test
     end
 
     commit
-  end
-
-  def capture_stdout
-    original = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = original
   end
 end
 
@@ -796,7 +770,7 @@ class Git::Pkgs::TestInfoCommand < Minitest::Test
   def test_info_with_zero_snapshots_does_not_crash
     # Create commits with dependency changes but no snapshots
     sha = SecureRandom.hex(20)
-    Git::Pkgs::Models::Commit.create!(
+    Git::Pkgs::Models::Commit.create(
       sha: sha,
       message: "Test commit",
       author_name: "Test User",
@@ -820,7 +794,7 @@ class Git::Pkgs::TestInfoCommand < Minitest::Test
 
   def test_info_with_snapshots_shows_ratio
     sha = SecureRandom.hex(20)
-    commit = Git::Pkgs::Models::Commit.create!(
+    commit = Git::Pkgs::Models::Commit.create(
       sha: sha,
       message: "Test commit",
       author_name: "Test User",
@@ -829,13 +803,13 @@ class Git::Pkgs::TestInfoCommand < Minitest::Test
       has_dependency_changes: true
     )
 
-    manifest = Git::Pkgs::Models::Manifest.create!(
+    manifest = Git::Pkgs::Models::Manifest.create(
       path: "Gemfile",
       ecosystem: "rubygems",
       kind: "manifest"
     )
 
-    Git::Pkgs::Models::DependencySnapshot.create!(
+    Git::Pkgs::Models::DependencySnapshot.create(
       commit: commit,
       manifest: manifest,
       name: "rails",
@@ -878,17 +852,17 @@ class Git::Pkgs::TestWhereCommand < Minitest::Test
 
     # Create branch and snapshot
     repo = Git::Pkgs::Repository.new(@test_dir)
-    Git::Pkgs::Models::Branch.create!(name: repo.default_branch, last_analyzed_sha: repo.head_sha)
+    Git::Pkgs::Models::Branch.create(name: repo.default_branch, last_analyzed_sha: repo.head_sha)
     rugged_commit = repo.lookup(repo.head_sha)
     commit_record = Git::Pkgs::Models::Commit.find_or_create_from_rugged(rugged_commit)
 
-    manifest = Git::Pkgs::Models::Manifest.create!(
+    manifest = Git::Pkgs::Models::Manifest.create(
       path: "Gemfile",
       ecosystem: "rubygems",
       kind: "manifest"
     )
 
-    Git::Pkgs::Models::DependencySnapshot.create!(
+    Git::Pkgs::Models::DependencySnapshot.create(
       commit: commit_record,
       manifest: manifest,
       name: "rails",
@@ -896,7 +870,7 @@ class Git::Pkgs::TestWhereCommand < Minitest::Test
       requirement: "~> 7.0"
     )
 
-    Git::Pkgs::Models::DependencySnapshot.create!(
+    Git::Pkgs::Models::DependencySnapshot.create(
       commit: commit_record,
       manifest: manifest,
       name: "puma",

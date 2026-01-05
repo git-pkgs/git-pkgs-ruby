@@ -90,22 +90,22 @@ module Git
           flush = lambda do
             return if pending_commits.empty?
 
-            ActiveRecord::Base.transaction do
-              Models::Commit.insert_all(pending_commits) if pending_commits.any?
+            Database.db.transaction do
+              Models::Commit.dataset.multi_insert(pending_commits) if pending_commits.any?
 
               commit_ids = Models::Commit
                 .where(sha: pending_commits.map { |c| c[:sha] })
-                .pluck(:sha, :id).to_h
+                .select_hash(:sha, :id)
 
               if pending_branch_commits.any?
                 branch_commit_records = pending_branch_commits.map do |bc|
                   { branch_id: bc[:branch_id], commit_id: commit_ids[bc[:sha]], position: bc[:position] }
                 end
-                Models::BranchCommit.insert_all(branch_commit_records)
+                Models::BranchCommit.dataset.multi_insert(branch_commit_records)
               end
 
               if pending_changes.any?
-                manifest_ids = Models::Manifest.pluck(:path, :id).to_h
+                manifest_ids = Models::Manifest.select_hash(:path, :id)
                 change_records = pending_changes.map do |c|
                   {
                     commit_id: commit_ids[c[:sha]],
@@ -120,11 +120,11 @@ module Git
                     updated_at: now
                   }
                 end
-                Models::DependencyChange.insert_all(change_records)
+                Models::DependencyChange.dataset.multi_insert(change_records)
               end
 
               if pending_snapshots.any?
-                manifest_ids ||= Models::Manifest.pluck(:path, :id).to_h
+                manifest_ids ||= Models::Manifest.select_hash(:path, :id)
                 snapshot_records = pending_snapshots.map do |s|
                   {
                     commit_id: commit_ids[s[:sha]],
@@ -137,7 +137,7 @@ module Git
                     updated_at: now
                   }
                 end
-                Models::DependencySnapshot.insert_all(snapshot_records)
+                Models::DependencySnapshot.dataset.multi_insert(snapshot_records)
               end
             end
 

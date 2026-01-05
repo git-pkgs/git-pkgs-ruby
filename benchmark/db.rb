@@ -52,11 +52,10 @@ commits.each do |rugged_commit|
   counts[:commits] += 1
 
   timings[:branch_commit_create] += Benchmark.realtime do
-    Git::Pkgs::Models::BranchCommit.find_or_create_by(
-      branch: branch,
-      commit: commit,
-      position: position
-    )
+    Git::Pkgs::Models::BranchCommit.find_or_create(
+      branch_id: branch.id,
+      commit_id: commit.id
+    ) { |bc| bc.position = position }
   end
   counts[:branch_commits] += 1
 
@@ -77,7 +76,7 @@ commits.each do |rugged_commit|
     end
 
     timings[:change_create] += Benchmark.realtime do
-      Git::Pkgs::Models::DependencyChange.create!(
+      Git::Pkgs::Models::DependencyChange.create(
         commit: commit,
         manifest: manifest,
         name: change[:name],
@@ -95,10 +94,10 @@ commits.each do |rugged_commit|
 
   snapshot.each do |(manifest_path, name), dep_info|
     timings[:snapshot_create] += Benchmark.realtime do
-      manifest = Git::Pkgs::Models::Manifest.find_by(path: manifest_path)
-      Git::Pkgs::Models::DependencySnapshot.find_or_create_by(
-        commit: commit,
-        manifest: manifest,
+      manifest = Git::Pkgs::Models::Manifest.first(path: manifest_path)
+      Git::Pkgs::Models::DependencySnapshot.find_or_create(
+        commit_id: commit.id,
+        manifest_id: manifest.id,
         name: name
       ) do |s|
         s.ecosystem = dep_info[:ecosystem]

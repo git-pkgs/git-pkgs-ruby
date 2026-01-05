@@ -38,22 +38,24 @@ module Git
 
           # Get all changes between the two commits
           changes = Models::DependencyChange
-            .includes(:commit, :manifest)
-            .joins(:commit)
-            .where("commits.committed_at > ? AND commits.committed_at <= ?",
-                   from_commit.committed_at, to_commit.committed_at)
-            .order("commits.committed_at ASC")
+            .eager(:commit, :manifest)
+            .join(:commits, id: :commit_id)
+            .where { Sequel[:commits][:committed_at] > from_commit.committed_at }
+            .where { Sequel[:commits][:committed_at] <= to_commit.committed_at }
+            .order(Sequel[:commits][:committed_at])
 
           if @options[:ecosystem]
-            changes = changes.where(ecosystem: @options[:ecosystem])
+            changes = changes.where(Sequel[:dependency_changes][:ecosystem] => @options[:ecosystem])
           end
 
-          if changes.empty?
+          changes_list = changes.all
+
+          if changes_list.empty?
             empty_result "No dependency changes between #{from_commit.short_sha} and #{to_commit.short_sha}"
             return
           end
 
-          paginate { output_text(from_commit, to_commit, changes) }
+          paginate { output_text(from_commit, to_commit, changes_list) }
         end
 
         def output_text(from_commit, to_commit, changes)

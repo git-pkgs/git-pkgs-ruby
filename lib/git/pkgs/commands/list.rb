@@ -18,7 +18,7 @@ module Git
           Database.connect(repo.git_dir)
 
           commit_sha = @options[:commit] || repo.head_sha
-          target_commit = Models::Commit.find_by(sha: commit_sha)
+          target_commit = Models::Commit.first(sha: commit_sha)
 
           error "Commit #{commit_sha[0, 7]} not in database. Run 'git pkgs update' to index new commits." unless target_commit
 
@@ -61,21 +61,21 @@ module Git
 
         def compute_dependencies_at_commit(target_commit, repo)
           branch_name = @options[:branch] || repo.default_branch
-          branch = Models::Branch.find_by(name: branch_name)
+          branch = Models::Branch.first(name: branch_name)
           return [] unless branch
 
           # Find the nearest snapshot commit before or at target
-          snapshot_commit = branch.commits
-            .joins(:dependency_snapshots)
-            .where("commits.committed_at <= ?", target_commit.committed_at)
-            .order(committed_at: :desc)
+          snapshot_commit = branch.commits_dataset
+            .join(:dependency_snapshots, commit_id: :id)
+            .where { Sequel[:commits][:committed_at] <= target_commit.committed_at }
+            .order(Sequel.desc(Sequel[:commits][:committed_at]))
             .distinct
             .first
 
           # Build initial state from snapshot
           deps = {}
           if snapshot_commit
-            snapshot_commit.dependency_snapshots.includes(:manifest).each do |s|
+            snapshot_commit.dependency_snapshots.each do |s|
               key = [s.manifest.path, s.name]
               deps[key] = {
                 manifest_path: s.manifest.path,
@@ -89,13 +89,15 @@ module Git
 
           # Replay changes from snapshot to target
           if snapshot_commit && snapshot_commit.id != target_commit.id
+            commit_ids = branch.commits_dataset.select_map(:id)
             changes = Models::DependencyChange
-              .joins(:commit)
-              .where(commits: { id: branch.commit_ids })
-              .where("commits.committed_at > ? AND commits.committed_at <= ?",
-                     snapshot_commit.committed_at, target_commit.committed_at)
-              .order("commits.committed_at ASC")
-              .includes(:manifest)
+              .join(:commits, id: :commit_id)
+              .where(Sequel[:commits][:id] => commit_ids)
+              .where { Sequel[:commits][:committed_at] > snapshot_commit.committed_at }
+              .where { Sequel[:commits][:committed_at] <= target_commit.committed_at }
+              .order(Sequel[:commits][:committed_at])
+              .eager(:manifest)
+              .all
 
             changes.each do |change|
               key = [change.manifest.path, change.name]

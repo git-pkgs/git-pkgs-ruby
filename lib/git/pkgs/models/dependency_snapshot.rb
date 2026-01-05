@@ -3,21 +3,29 @@
 module Git
   module Pkgs
     module Models
-      class DependencySnapshot < ActiveRecord::Base
-        belongs_to :commit
-        belongs_to :manifest
+      class DependencySnapshot < Sequel::Model
+        many_to_one :commit
+        many_to_one :manifest
 
-        validates :name, presence: true
+        dataset_module do
+          def for_package(name)
+            where(name: name)
+          end
 
-        scope :for_package, ->(name) { where(name: name) }
-        scope :for_platform, ->(platform) { where(ecosystem: platform) }
-        scope :at_commit, ->(commit) { where(commit: commit) }
+          def for_platform(platform)
+            where(ecosystem: platform)
+          end
+
+          def at_commit(commit)
+            where(commit: commit)
+          end
+        end
 
         def self.current_for_branch(branch)
-          return none unless branch.last_analyzed_sha
+          return dataset.where(false) unless branch.last_analyzed_sha
 
-          commit = Commit.find_by(sha: branch.last_analyzed_sha)
-          return none unless commit
+          commit = Commit.first(sha: branch.last_analyzed_sha)
+          return dataset.where(false) unless commit
 
           where(commit: commit)
         end

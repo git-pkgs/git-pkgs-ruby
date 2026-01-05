@@ -18,16 +18,22 @@ module Git
           Database.connect(repo.git_dir)
 
           commits = Models::Commit
-            .includes(:dependency_changes)
+            .eager(:dependency_changes)
             .where(has_dependency_changes: true)
-            .order(committed_at: :desc)
+            .order(Sequel.desc(:committed_at), Sequel.desc(:id))
 
-          commits = commits.where("author_name LIKE ? OR author_email LIKE ?",
-            "%#{@options[:author]}%", "%#{@options[:author]}%") if @options[:author]
-          commits = commits.where("committed_at >= ?", parse_time(@options[:since])) if @options[:since]
-          commits = commits.where("committed_at <= ?", parse_time(@options[:until])) if @options[:until]
+          if @options[:author]
+            author = @options[:author]
+            commits = commits.where(
+              Sequel.like(:author_name, "%#{author}%") |
+              Sequel.like(:author_email, "%#{author}%")
+            )
+          end
 
-          commits = commits.limit(@options[:limit] || 20)
+          commits = commits.where { committed_at >= parse_time(@options[:since]) } if @options[:since]
+          commits = commits.where { committed_at <= parse_time(@options[:until]) } if @options[:until]
+
+          commits = commits.limit(@options[:limit] || 20).all
 
           if commits.empty?
             empty_result "No commits with dependency changes found"

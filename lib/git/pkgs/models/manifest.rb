@@ -3,17 +3,15 @@
 module Git
   module Pkgs
     module Models
-      class Manifest < ActiveRecord::Base
-        has_many :dependency_changes, dependent: :destroy
-        has_many :dependency_snapshots, dependent: :destroy
+      class Manifest < Sequel::Model
+        one_to_many :dependency_changes
+        one_to_many :dependency_snapshots
 
-        validates :path, presence: true
+        def self.find_or_create(path:, ecosystem: nil, kind: nil)
+          existing = first(path: path)
+          return existing if existing
 
-        def self.find_or_create(path:, ecosystem:, kind:)
-          find_or_create_by(path: path) do |m|
-            m.ecosystem = ecosystem
-            m.kind = kind
-          end
+          create(path: path, ecosystem: ecosystem, kind: kind)
         end
       end
     end

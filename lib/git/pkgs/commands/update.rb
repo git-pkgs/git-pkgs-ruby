@@ -18,7 +18,7 @@ module Git
           Database.connect(repo.git_dir)
 
           branch_name = @options[:branch] || repo.default_branch
-          branch = Models::Branch.find_by(name: branch_name)
+          branch = Models::Branch.first(name: branch_name)
 
           error "Branch '#{branch_name}' not in database. Run 'git pkgs init --branch=#{branch_name}' first." unless branch
 
@@ -33,11 +33,11 @@ module Git
           analyzer = Analyzer.new(repo)
 
           # Get current snapshot from last analyzed commit
-          last_commit = Models::Commit.find_by(sha: since_sha)
+          last_commit = Models::Commit.first(sha: since_sha)
           snapshot = {}
 
           if last_commit
-            last_commit.dependency_snapshots.includes(:manifest).each do |s|
+            last_commit.dependency_snapshots.each do |s|
               key = [s.manifest.path, s.name]
               snapshot[key] = {
                 ecosystem: s.ecosystem,
@@ -54,12 +54,12 @@ module Git
 
           processed = 0
           dependency_commits = 0
-          last_position = Models::BranchCommit.where(branch: branch).maximum(:position) || 0
+          last_position = Models::BranchCommit.where(branch: branch).max(:position) || 0
 
           info "Updating branch: #{branch_name}"
           info "Found #{total} new commits"
 
-          ActiveRecord::Base.transaction do
+          Database.db.transaction do
             commits.each do |rugged_commit|
               processed += 1
               print "\rProcessing commit #{processed}/#{total}..." unless Git::Pkgs.quiet
@@ -67,11 +67,12 @@ module Git
               result = analyzer.analyze_commit(rugged_commit, snapshot)
 
               commit = Models::Commit.find_or_create_from_rugged(rugged_commit)
-              Models::BranchCommit.find_or_create_by(
+              Models::BranchCommit.find_or_create(
                 branch: branch,
-                commit: commit,
-                position: last_position + processed
-              )
+                commit: commit
+              ) do |bc|
+                bc.position = last_position + processed
+              end
 
               if result && result[:changes].any?
                 dependency_commits += 1
@@ -84,7 +85,7 @@ module Git
                     kind: change[:kind]
                   )
 
-                  Models::DependencyChange.create!(
+                  Models::DependencyChange.create(
                     commit: commit,
                     manifest: manifest,
                     name: change[:name],
@@ -99,8 +100,8 @@ module Git
                 snapshot = result[:snapshot]
 
                 snapshot.each do |(manifest_path, name), dep_info|
-                  manifest = Models::Manifest.find_by(path: manifest_path)
-                  Models::DependencySnapshot.find_or_create_by(
+                  manifest = Models::Manifest.first(path: manifest_path)
+                  Models::DependencySnapshot.find_or_create(
                     commit: commit,
                     manifest: manifest,
                     name: name

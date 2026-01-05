@@ -18,7 +18,7 @@ module Git
           Database.connect(repo.git_dir)
 
           branch_name = @options[:branch] || repo.default_branch
-          branch = Models::Branch.find_by(name: branch_name)
+          branch = Models::Branch.first(name: branch_name)
 
           if @options[:by_author]
             output_by_author
@@ -39,9 +39,9 @@ module Git
           since_time = @options[:since] ? parse_time(@options[:since]) : nil
           until_time = @options[:until] ? parse_time(@options[:until]) : nil
 
-          commits = branch&.commits || Models::Commit.none
-          commits = commits.where("committed_at >= ?", since_time) if since_time
-          commits = commits.where("committed_at <= ?", until_time) if until_time
+          commits = branch ? branch.commits_dataset : Models::Commit.where(false)
+          commits = commits.where { committed_at >= since_time } if since_time
+          commits = commits.where { committed_at <= until_time } if until_time
 
           data = {
             branch: branch_name,
@@ -57,59 +57,59 @@ module Git
           }
 
           if branch&.last_analyzed_sha
-            current_commit = Models::Commit.find_by(sha: branch.last_analyzed_sha)
-            snapshots = current_commit&.dependency_snapshots || []
+            current_commit = Models::Commit.first(sha: branch.last_analyzed_sha)
+            snapshots = current_commit ? current_commit.dependency_snapshots_dataset : Models::DependencySnapshot.where(false)
             snapshots = snapshots.where(ecosystem: ecosystem) if ecosystem
 
             data[:current_dependencies] = {
               total: snapshots.count,
-              by_platform: snapshots.group(:ecosystem).count,
-              by_type: snapshots.group(:dependency_type).count
+              by_platform: snapshots.group_and_count(:ecosystem).as_hash(:ecosystem, :count),
+              by_type: snapshots.group_and_count(:dependency_type).as_hash(:dependency_type, :count)
             }
           end
 
-          changes = Models::DependencyChange.joins(:commit)
-          changes = changes.where(ecosystem: ecosystem) if ecosystem
-          changes = changes.where("commits.committed_at >= ?", since_time) if since_time
-          changes = changes.where("commits.committed_at <= ?", until_time) if until_time
+          changes = Models::DependencyChange.join(:commits, id: :commit_id)
+          changes = changes.where(Sequel[:dependency_changes][:ecosystem] => ecosystem) if ecosystem
+          changes = changes.where { Sequel[:commits][:committed_at] >= since_time } if since_time
+          changes = changes.where { Sequel[:commits][:committed_at] <= until_time } if until_time
 
           data[:changes] = {
             total: changes.count,
-            by_type: changes.group(:change_type).count
+            by_type: changes.group_and_count(Sequel[:dependency_changes][:change_type]).as_hash(:change_type, :count)
           }
 
           most_changed = changes
-            .group(:name, :ecosystem)
-            .order("count_all DESC")
+            .group(Sequel[:dependency_changes][:name], Sequel[:dependency_changes][:ecosystem])
+            .order(Sequel.desc(:count))
             .limit(10)
-            .count
+            .select_append { count.function.*.as(:count) }
+            .select_map([:name, :ecosystem, :count])
 
-          data[:most_changed] = most_changed.map do |(name, eco), count|
+          data[:most_changed] = most_changed.map do |name, eco, count|
             { name: name, ecosystem: eco, changes: count }
           end
 
-          manifests = Models::Manifest.all
+          manifests = Models::Manifest.dataset
           manifests = manifests.where(ecosystem: ecosystem) if ecosystem
 
-          manifest_ids = manifests.pluck(:id)
+          manifest_ids = manifests.select_map(:id)
           change_counts_query = Models::DependencyChange
-            .joins(:commit)
-            .where(manifest_id: manifest_ids)
-          change_counts_query = change_counts_query.where("commits.committed_at >= ?", since_time) if since_time
-          change_counts_query = change_counts_query.where("commits.committed_at <= ?", until_time) if until_time
-          change_counts = change_counts_query.group(:manifest_id).count
+            .join(:commits, id: :commit_id)
+            .where(Sequel[:dependency_changes][:manifest_id] => manifest_ids)
+          change_counts_query = change_counts_query.where { Sequel[:commits][:committed_at] >= since_time } if since_time
+          change_counts_query = change_counts_query.where { Sequel[:commits][:committed_at] <= until_time } if until_time
+          change_counts = change_counts_query.group_and_count(Sequel[:dependency_changes][:manifest_id]).as_hash(:manifest_id, :count)
 
-          data[:manifests] = manifests.map do |manifest|
+          data[:manifests] = manifests.all.map do |manifest|
             { path: manifest.path, ecosystem: manifest.ecosystem, changes: change_counts[manifest.id] || 0 }
           end
 
           top_authors = changes
-            .where(change_type: "added")
-            .joins(:commit)
-            .group("commits.author_name")
-            .order("count_all DESC")
+            .where(Sequel[:dependency_changes][:change_type] => "added")
+            .group_and_count(Sequel[:commits][:author_name])
+            .order(Sequel.desc(:count))
             .limit(5)
-            .count
+            .as_hash(:author_name, :count)
 
           data[:top_authors] = top_authors.map { |name, count| { name: name, added: count } }
 
@@ -185,18 +185,18 @@ module Git
           until_time = @options[:until] ? parse_time(@options[:until]) : nil
 
           changes = Models::DependencyChange
-            .joins(:commit)
-            .where(change_type: "added")
+            .join(:commits, id: :commit_id)
+            .where(Sequel[:dependency_changes][:change_type] => "added")
 
-          changes = changes.where(ecosystem: @options[:ecosystem]) if @options[:ecosystem]
-          changes = changes.where("commits.committed_at >= ?", since_time) if since_time
-          changes = changes.where("commits.committed_at <= ?", until_time) if until_time
+          changes = changes.where(Sequel[:dependency_changes][:ecosystem] => @options[:ecosystem]) if @options[:ecosystem]
+          changes = changes.where { Sequel[:commits][:committed_at] >= since_time } if since_time
+          changes = changes.where { Sequel[:commits][:committed_at] <= until_time } if until_time
 
           counts = changes
-            .group("commits.author_name")
-            .order("count_all DESC")
+            .group_and_count(Sequel[:commits][:author_name])
+            .order(Sequel.desc(:count))
             .limit(@options[:limit] || 20)
-            .count
+            .as_hash(:author_name, :count)
 
           if counts.empty?
             empty_result "No dependency additions found"

@@ -24,21 +24,23 @@ module Git
           error "No dependency data for commit #{commit_sha[0, 7]}. Run 'git pkgs update' to index new commits." unless commit
 
           # Get current snapshots
-          snapshots = commit.dependency_snapshots.includes(:manifest)
+          snapshots = commit.dependency_snapshots_dataset.eager(:manifest)
 
           if @options[:ecosystem]
             snapshots = snapshots.where(ecosystem: @options[:ecosystem])
           end
 
-          if snapshots.empty?
+          snapshots_list = snapshots.all
+
+          if snapshots_list.empty?
             empty_result "No dependencies found"
             return
           end
 
           # Group by manifest and build tree
-          grouped = snapshots.group_by { |s| s.manifest }
+          grouped = snapshots_list.group_by { |s| s.manifest }
 
-          paginate { output_text(grouped, snapshots) }
+          paginate { output_text(grouped, snapshots_list) }
         end
 
         def output_text(grouped, snapshots)
@@ -73,19 +75,20 @@ module Git
         end
 
         def find_commit_with_snapshot(sha, repo)
-          commit = Models::Commit.find_by(sha: sha) ||
-                   Models::Commit.where("sha LIKE ?", "#{sha}%").first
+          commit = Models::Commit.first(sha: sha) ||
+                   Models::Commit.where(Sequel.like(:sha, "#{sha}%")).first
           return commit if commit&.dependency_snapshots&.any?
 
           # Find most recent commit with a snapshot
           branch_name = @options[:branch] || repo.default_branch
-          branch = Models::Branch.find_by(name: branch_name)
+          branch = Models::Branch.first(name: branch_name)
           return nil unless branch
 
-          branch.commits
-            .joins(:dependency_snapshots)
-            .where("commits.committed_at <= ?", commit&.committed_at || Time.now)
-            .order(committed_at: :desc)
+          target_time = commit&.committed_at || Time.now
+          branch.commits_dataset
+            .join(:dependency_snapshots, commit_id: :id)
+            .where { Sequel[:commits][:committed_at] <= target_time }
+            .order(Sequel.desc(Sequel[:commits][:committed_at]))
             .distinct
             .first
         end

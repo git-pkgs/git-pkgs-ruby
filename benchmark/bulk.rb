@@ -8,10 +8,10 @@ require "benchmark"
 repo_path = ARGV[0] || "/Users/andrew/code/octobox"
 sample_size = (ARGV[1] || 500).to_i
 
-# In-memory with WAL mode equivalent (journal_mode=memory for in-memory DB)
+# In-memory with optimized settings
 Git::Pkgs::Database.connect_memory
-ActiveRecord::Base.connection.execute("PRAGMA synchronous = OFF")
-ActiveRecord::Base.connection.execute("PRAGMA journal_mode = MEMORY")
+Git::Pkgs::Database.db.run("PRAGMA synchronous = OFF")
+Git::Pkgs::Database.db.run("PRAGMA journal_mode = MEMORY")
 
 repo = Git::Pkgs::Repository.new(repo_path)
 analyzer = Git::Pkgs::Analyzer.new(repo)
@@ -111,11 +111,11 @@ puts "  Snapshots: #{all_snapshots.size}"
 # Bulk insert
 insert_time = Benchmark.realtime do
   # Insert commits
-  Git::Pkgs::Models::Commit.insert_all(all_commits) if all_commits.any?
+  Git::Pkgs::Models::Commit.multi_insert(all_commits) if all_commits.any?
 
   # Build SHA -> ID map
-  commit_ids = Git::Pkgs::Models::Commit.where(sha: all_commits.map { |c| c[:sha] }).pluck(:sha, :id).to_h
-  manifest_ids = Git::Pkgs::Models::Manifest.pluck(:path, :id).to_h
+  commit_ids = Git::Pkgs::Models::Commit.where(sha: all_commits.map { |c| c[:sha] }).select_map([:sha, :id]).to_h
+  manifest_ids = Git::Pkgs::Models::Manifest.select_map([:path, :id]).to_h
 
   # Insert branch_commits with resolved IDs
   branch_commit_records = all_branch_commits.map do |bc|
@@ -125,7 +125,7 @@ insert_time = Benchmark.realtime do
       position: bc[:commit_position]
     }
   end
-  Git::Pkgs::Models::BranchCommit.insert_all(branch_commit_records) if branch_commit_records.any?
+  Git::Pkgs::Models::BranchCommit.multi_insert(branch_commit_records) if branch_commit_records.any?
 
   # Insert changes with resolved IDs
   change_records = all_changes.map do |c|
@@ -142,7 +142,7 @@ insert_time = Benchmark.realtime do
       updated_at: c[:updated_at]
     }
   end
-  Git::Pkgs::Models::DependencyChange.insert_all(change_records) if change_records.any?
+  Git::Pkgs::Models::DependencyChange.multi_insert(change_records) if change_records.any?
 
   # Insert snapshots with resolved IDs
   snapshot_records = all_snapshots.map do |s|
@@ -157,7 +157,7 @@ insert_time = Benchmark.realtime do
       updated_at: s[:updated_at]
     }
   end
-  Git::Pkgs::Models::DependencySnapshot.insert_all(snapshot_records) if snapshot_records.any?
+  Git::Pkgs::Models::DependencySnapshot.multi_insert(snapshot_records) if snapshot_records.any?
 end
 
 puts "Insert time: #{insert_time.round(3)}s"

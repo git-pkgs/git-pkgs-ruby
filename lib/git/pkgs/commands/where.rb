@@ -22,7 +22,7 @@ module Git
           Database.connect(repo.git_dir)
 
           workdir = File.dirname(repo.git_dir)
-          branch = Models::Branch.find_by(name: @options[:branch] || repo.default_branch)
+          branch = Models::Branch.first(name: @options[:branch] || repo.default_branch)
 
           unless branch
             error "Branch not found. Run 'git pkgs init' first."
@@ -31,7 +31,10 @@ module Git
           snapshots = Models::DependencySnapshot.current_for_branch(branch)
           snapshots = snapshots.where(ecosystem: @options[:ecosystem]) if @options[:ecosystem]
 
-          manifest_paths = snapshots.for_package(name).joins(:manifest).pluck("manifests.path").uniq
+          manifest_paths = snapshots.for_package(name)
+            .join(:manifests, id: :manifest_id)
+            .select_map(Sequel[:manifests][:path])
+            .uniq
 
           if manifest_paths.empty?
             empty_result "Package '#{name}' not found in current dependencies"

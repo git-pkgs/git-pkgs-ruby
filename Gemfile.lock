@@ -1,42 +1,7 @@
-PATH
-  remote: .
+GIT
+  remote: https://github.com/ecosyste-ms/bibliothecary.git
+  revision: 827bda17dc8866d3f712d40942760f4d52e23b63
   specs:
-    git-pkgs (0.5.0)
-      activerecord (>= 7.0)
-      ecosystems-bibliothecary (~> 15.0)
-      rugged (~> 1.0)
-      sqlite3 (>= 2.0)
-
-GEM
-  remote: https://rubygems.org/
-  specs:
-    activemodel (8.1.1)
-      activesupport (= 8.1.1)
-    activerecord (8.1.1)
-      activemodel (= 8.1.1)
-      activesupport (= 8.1.1)
-      timeout (>= 0.4.0)
-    activesupport (8.1.1)
-      base64
-      bigdecimal
-      concurrent-ruby (~> 1.0, >= 1.3.1)
-      connection_pool (>= 2.2.5)
-      drb
-      i18n (>= 1.6, < 2)
-      json
-      logger (>= 1.4.2)
-      minitest (>= 5.1)
-      securerandom (>= 0.3)
-      tzinfo (~> 2.0, >= 2.0.5)
-      uri (>= 0.13.1)
-    base64 (0.3.0)
-    benchmark (0.5.0)
-    bigdecimal (4.0.1)
-    concurrent-ruby (1.3.6)
-    connection_pool (3.0.2)
-    csv (3.3.5)
-    date (3.5.1)
-    drb (2.2.3)
     ecosystems-bibliothecary (15.0.1)
       bundler
       csv
@@ -44,16 +9,30 @@ GEM
       ox (>= 2.8.1)
       racc
       tomlrb (~> 2.0)
+
+PATH
+  remote: .
+  specs:
+    git-pkgs (0.5.0)
+      ecosystems-bibliothecary (~> 15.0)
+      rugged (~> 1.0)
+      sequel (>= 5.0)
+      sqlite3 (>= 2.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    benchmark (0.5.0)
+    bigdecimal (4.0.1)
+    csv (3.3.5)
+    date (3.5.1)
     erb (6.0.1)
-    i18n (1.14.8)
-      concurrent-ruby (~> 1.0)
     io-console (0.8.2)
     irb (1.16.0)
       pp (>= 0.6.0)
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (2.18.0)
-    logger (1.7.0)
     minitest (6.0.1)
       prism (~> 1.5)
     ostruct (0.6.3)
@@ -75,7 +54,8 @@ GEM
     reline (0.6.3)
       io-console (~> 0.5)
     rugged (1.9.0)
-    securerandom (0.4.1)
+    sequel (5.100.0)
+      bigdecimal
     sqlite3 (2.9.0-aarch64-linux-gnu)
     sqlite3 (2.9.0-aarch64-linux-musl)
     sqlite3 (2.9.0-arm-linux-gnu)
@@ -87,12 +67,8 @@ GEM
     sqlite3 (2.9.0-x86_64-linux-gnu)
     sqlite3 (2.9.0-x86_64-linux-musl)
     stringio (3.2.0)
-    timeout (0.6.0)
     tomlrb (2.0.4)
     tsort (0.2.0)
-    tzinfo (2.0.6)
-      concurrent-ruby (~> 1.0)
-    uri (1.1.1)
 
 PLATFORMS
   aarch64-linux-gnu
@@ -108,6 +84,7 @@ PLATFORMS
 
 DEPENDENCIES
   benchmark
+  ecosystems-bibliothecary!
   git-pkgs!
   irb
   minitest
@@ -115,25 +92,16 @@ DEPENDENCIES
   rake
 
 CHECKSUMS
-  activemodel (8.1.1) sha256=8b7e2496b9e333ced06248c16a43217b950192c98e0fe3aa117eee21501c6fbd
-  activerecord (8.1.1) sha256=e32c3a03e364fd803498eb4150c21bedc995aa83bc27122a94d480ab1dcb3d17
-  activesupport (8.1.1) sha256=5e92534e8d0c8b8b5e6b16789c69dbea65c1d7b752269f71a39422e9546cea67
-  base64 (0.3.0) sha256=27337aeabad6ffae05c265c450490628ef3ebd4b67be58257393227588f5a97b
   benchmark (0.5.0) sha256=465df122341aedcb81a2a24b4d3bd19b6c67c1530713fd533f3ff034e419236c
   bigdecimal (4.0.1) sha256=8b07d3d065a9f921c80ceaea7c9d4ae596697295b584c296fe599dd0ad01c4a7
-  concurrent-ruby (1.3.6) sha256=6b56837e1e7e5292f9864f34b69c5a2cbc75c0cf5338f1ce9903d10fa762d5ab
-  connection_pool (3.0.2) sha256=33fff5ba71a12d2aa26cb72b1db8bba2a1a01823559fb01d29eb74c286e62e0a
   csv (3.3.5) sha256=6e5134ac3383ef728b7f02725d9872934f523cb40b961479f69cf3afa6c8e73f
   date (3.5.1) sha256=750d06384d7b9c15d562c76291407d89e368dda4d4fff957eb94962d325a0dc0
-  drb (2.2.3) sha256=0b00d6fdb50995fe4a45dea13663493c841112e4068656854646f418fda13373
-  ecosystems-bibliothecary (15.0.1) sha256=e557381cbe1a56931cb68c8a685a33dd9156a7b331a583874b4ac05f94df6f1c
+  ecosystems-bibliothecary (15.0.1)
   erb (6.0.1) sha256=28ecdd99c5472aebd5674d6061e3c6b0a45c049578b071e5a52c2a7f13c197e5
   git-pkgs (0.5.0)
-  i18n (1.14.8) sha256=285778639134865c5e0f6269e0b818256017e8cde89993fdfcbfb64d088824a5
   io-console (0.8.2) sha256=d6e3ae7a7cc7574f4b8893b4fca2162e57a825b223a177b7afa236c5ef9814cc
   irb (1.16.0) sha256=2abe56c9ac947cdcb2f150572904ba798c1e93c890c256f8429981a7675b0806
   json (2.18.0) sha256=b10506aee4183f5cf49e0efc48073d7b75843ce3782c68dbeb763351c08fd505
-  logger (1.7.0) sha256=196edec7cc44b66cfb40f9755ce11b392f21f7967696af15d274dde7edff0203
   minitest (6.0.1) sha256=7854c74f48e2e975969062833adc4013f249a4b212f5e7b9d5c040bf838d54bb
   ostruct (0.6.3) sha256=95a2ed4a4bd1d190784e666b47b2d3f078e4a9efda2fccf18f84ddc6538ed912
   ox (2.14.23) sha256=4a9aedb4d6c78c5ebac1d7287dc7cc6808e14a8831d7adb727438f6a1b461b66
@@ -146,7 +114,7 @@ CHECKSUMS
   rdoc (7.0.3) sha256=dfe3d0981d19b7bba71d9dbaeb57c9f4e3a7a4103162148a559c4fc687ea81f9
   reline (0.6.3) sha256=1198b04973565b36ec0f11542ab3f5cfeeec34823f4e54cebde90968092b1835
   rugged (1.9.0) sha256=7faaa912c5888d6e348d20fa31209b6409f1574346b1b80e309dbc7e8d63efac
-  securerandom (0.4.1) sha256=cc5193d414a4341b6e225f0cb4446aceca8e50d5e1888743fac16987638ea0b1
+  sequel (5.100.0) sha256=cb0329b62287a01db68eead46759c14497a3fae01b174e2c41da108a9e9b4a12
   sqlite3 (2.9.0-aarch64-linux-gnu) sha256=cfe1e0216f46d7483839719bf827129151e6c680317b99d7b8fc1597a3e13473
   sqlite3 (2.9.0-aarch64-linux-musl) sha256=56a35cb2d70779afc2ac191baf2c2148242285ecfed72f9b021218c5c4917913
   sqlite3 (2.9.0-arm-linux-gnu) sha256=a19a21504b0d7c8c825fbbf37b358ae316b6bd0d0134c619874060b2eef05435
@@ -158,11 +126,8 @@ CHECKSUMS
   sqlite3 (2.9.0-x86_64-linux-gnu) sha256=72fff9bd750070ba3af695511ba5f0e0a2d8a9206f84869640b3e99dfaf3d5a5
   sqlite3 (2.9.0-x86_64-linux-musl) sha256=ef716ba7a66d7deb1ccc402ac3a6d7343da17fac862793b7f0be3d2917253c90
   stringio (3.2.0) sha256=c37cb2e58b4ffbd33fe5cd948c05934af997b36e0b6ca6fdf43afa234cf222e1
-  timeout (0.6.0) sha256=6d722ad619f96ee383a0c557ec6eb8c4ecb08af3af62098a0be5057bf00de1af
   tomlrb (2.0.4) sha256=262f77947ac3ac9b3366a0a5940ecd238300c553e2e14f22009e2afcd2181b99
   tsort (0.2.0) sha256=9650a793f6859a43b6641671278f79cfead60ac714148aabe4e3f0060480089f
-  tzinfo (2.0.6) sha256=8daf828cc77bcf7d63b0e3bdb6caa47e2272dcfaf4fbfe46f8c3a9df087a829b
-  uri (1.1.1) sha256=379fa58d27ffb1387eaada68c749d1426738bd0f654d812fcc07e7568f5c57c6
 
 BUNDLED WITH
   4.0.1

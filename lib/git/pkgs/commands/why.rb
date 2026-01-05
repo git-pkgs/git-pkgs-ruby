@@ -23,7 +23,7 @@ module Git
 
           # Find the first time this package was added
           added_change = Models::DependencyChange
-            .includes(:commit, :manifest)
+            .eager(:commit, :manifest)
             .for_package(package_name)
             .added
             .order("commits.committed_at ASC")

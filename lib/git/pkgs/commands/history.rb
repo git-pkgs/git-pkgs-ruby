@@ -20,8 +20,8 @@ module Git
           Database.connect(repo.git_dir)
 
           changes = Models::DependencyChange
-            .includes(:commit, :manifest)
-            .order("commits.committed_at ASC")
+            .eager_graph(:commit, :manifest)
+            .order(Sequel[:commit][:committed_at])
 
           changes = changes.for_package(package_name) if package_name
 
@@ -31,32 +31,34 @@ module Git
 
           if @options[:author]
             author = @options[:author]
-            changes = changes.joins(:commit).where(
-              "commits.author_name LIKE ? OR commits.author_email LIKE ?",
-              "%#{author}%", "%#{author}%"
+            changes = changes.where(
+              Sequel.like(Sequel[:commit][:author_name], "%#{author}%") |
+              Sequel.like(Sequel[:commit][:author_email], "%#{author}%")
             )
           end
 
           if @options[:since]
             since_time = parse_time(@options[:since])
-            changes = changes.joins(:commit).where("commits.committed_at >= ?", since_time)
+            changes = changes.where { Sequel[:commit][:committed_at] >= since_time }
           end
 
           if @options[:until]
             until_time = parse_time(@options[:until])
-            changes = changes.joins(:commit).where("commits.committed_at <= ?", until_time)
+            changes = changes.where { Sequel[:commit][:committed_at] <= until_time }
           end
 
-          if changes.empty?
+          changes_list = changes.all
+
+          if changes_list.empty?
             msg = package_name ? "No history found for '#{package_name}'" : "No dependency changes found"
             empty_result msg
             return
           end
 
           if @options[:format] == "json"
-            output_json(changes)
+            output_json(changes_list)
           else
-            paginate { output_text(changes, package_name) }
+            paginate { output_text(changes_list, package_name) }
           end
         end
 
