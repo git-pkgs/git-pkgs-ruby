@@ -1,6 +1,12 @@
 ## [Unreleased]
 
+## [0.6.0] - 2026-01-05
+
+- Replace ActiveRecord with Sequel (~3x faster init, ~2x faster queries)
 - `git pkgs stats` now shows top authors in default output
+- Update ecosystems-bibliothecary to ~> 15.0 (~10x faster lockfile parsing)
+- Fewer runtime dependencies
+- Quieter output from `init` and `update` commands
 
 ## [0.5.0] - 2026-01-04
 

@@ -13,7 +13,7 @@ GIT
 PATH
   remote: .
   specs:
-    git-pkgs (0.5.0)
+    git-pkgs (0.6.0)
       ecosystems-bibliothecary (~> 15.0)
       rugged (~> 1.0)
       sequel (>= 5.0)
@@ -98,7 +98,7 @@ CHECKSUMS
   date (3.5.1) sha256=750d06384d7b9c15d562c76291407d89e368dda4d4fff957eb94962d325a0dc0
   ecosystems-bibliothecary (15.0.1)
   erb (6.0.1) sha256=28ecdd99c5472aebd5674d6061e3c6b0a45c049578b071e5a52c2a7f13c197e5
-  git-pkgs (0.5.0)
+  git-pkgs (0.6.0)
   io-console (0.8.2) sha256=d6e3ae7a7cc7574f4b8893b4fca2162e57a825b223a177b7afa236c5ef9814cc
   irb (1.16.0) sha256=2abe56c9ac947cdcb2f150572904ba798c1e93c890c256f8429981a7675b0806
   json (2.18.0) sha256=b10506aee4183f5cf49e0efc48073d7b75843ce3782c68dbeb763351c08fd505
