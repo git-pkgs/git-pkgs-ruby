@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.6.1] - 2026-01-05
+
+- Fix `stats` command crash on most changed dependencies query
+
 ## [0.6.0] - 2026-01-05
 
 - Replace ActiveRecord with Sequel (~3x faster init, ~2x faster queries)
