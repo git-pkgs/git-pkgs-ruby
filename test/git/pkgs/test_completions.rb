@@ -113,21 +113,4 @@ class Git::Pkgs::TestCompletionsCommand < Minitest::Test
     ENV.delete("SHELL")
   end
 
-  def capture_stdout
-    original = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = original
-  end
-
-  def capture_stderr
-    original = $stderr
-    $stderr = StringIO.new
-    yield
-    $stderr.string
-  ensure
-    $stderr = original
-  end
 end

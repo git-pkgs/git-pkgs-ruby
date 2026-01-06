@@ -155,7 +155,7 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     parent_sha = repo.rev_parse("HEAD~1")
 
     # Create commits in database
-    parent_commit = Git::Pkgs::Models::Commit.create(
+    Git::Pkgs::Models::Commit.create(
       sha: parent_sha, message: "Initial",
       author_name: "Test", author_email: "test@example.com",
       committed_at: Time.now - 3600
@@ -228,7 +228,7 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     head_sha = repo.head_sha
     parent_sha = repo.rev_parse("HEAD~1")
 
-    parent_commit = Git::Pkgs::Models::Commit.create(
+    Git::Pkgs::Models::Commit.create(
       sha: parent_sha, message: "Initial",
       author_name: "Test", author_email: "test@example.com",
       committed_at: Time.now - 3600
@@ -259,7 +259,7 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     head_sha = repo.head_sha
     parent_sha = repo.rev_parse("HEAD~1")
 
-    parent_commit = Git::Pkgs::Models::Commit.create(
+    Git::Pkgs::Models::Commit.create(
       sha: parent_sha, message: "Initial",
       author_name: "Test", author_email: "test@example.com",
       committed_at: Time.now - 3600
@@ -291,7 +291,7 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     head_sha = repo.head_sha
     parent_sha = repo.rev_parse("HEAD~1")
 
-    parent_commit = Git::Pkgs::Models::Commit.create(
+    Git::Pkgs::Models::Commit.create(
       sha: parent_sha, message: "Initial",
       author_name: "Test", author_email: "test@example.com",
       committed_at: Time.now - 3600
