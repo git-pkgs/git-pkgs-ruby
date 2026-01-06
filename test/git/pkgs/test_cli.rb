@@ -365,6 +365,113 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     assert_equal [], data["removed"]
   end
 
+  def test_diff_error_no_from_ref
+    output = capture_stderr do
+      Dir.chdir(@test_dir) do
+        assert_raises(SystemExit) do
+          Git::Pkgs::Commands::Diff.new([]).run
+        end
+      end
+    end
+
+    assert_includes output, "Usage:"
+  end
+
+  def test_diff_error_invalid_from_ref
+    output = capture_stderr do
+      Dir.chdir(@test_dir) do
+        assert_raises(SystemExit) do
+          Git::Pkgs::Commands::Diff.new(["nonexistent..HEAD"]).run
+        end
+      end
+    end
+
+    assert_includes output, "Could not resolve"
+  end
+
+  def test_diff_error_invalid_to_ref
+    repo = Git::Pkgs::Repository.new(@test_dir)
+    parent_sha = repo.rev_parse("HEAD~1")
+
+    output = capture_stderr do
+      Dir.chdir(@test_dir) do
+        assert_raises(SystemExit) do
+          Git::Pkgs::Commands::Diff.new(["#{parent_sha}..nonexistent"]).run
+        end
+      end
+    end
+
+    assert_includes output, "Could not resolve"
+  end
+
+  def test_diff_with_only_added_changes
+    repo = Git::Pkgs::Repository.new(@test_dir)
+    head_sha = repo.head_sha
+    parent_sha = repo.rev_parse("HEAD~1")
+
+    Git::Pkgs::Models::Commit.create(
+      sha: parent_sha, message: "Initial",
+      author_name: "Test", author_email: "test@example.com",
+      committed_at: Time.now - 3600
+    )
+    head_commit = Git::Pkgs::Models::Commit.create(
+      sha: head_sha, message: "Add deps",
+      author_name: "Test", author_email: "test@example.com",
+      committed_at: Time.now
+    )
+
+    manifest = Git::Pkgs::Models::Manifest.find_or_create(path: "Gemfile", ecosystem: "rubygems", kind: "manifest")
+    Git::Pkgs::Models::DependencyChange.create(
+      commit: head_commit, manifest: manifest, name: "rails",
+      change_type: "added", ecosystem: "rubygems", requirement: "~> 7.0"
+    )
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Diff.new(["#{parent_sha}..#{head_sha}"]).run
+      end
+    end
+
+    assert_includes output, "Added:"
+    assert_includes output, "rails"
+    refute_includes output, "Modified:"
+    refute_includes output, "Removed:"
+  end
+
+  def test_diff_with_only_removed_changes
+    repo = Git::Pkgs::Repository.new(@test_dir)
+    head_sha = repo.head_sha
+    parent_sha = repo.rev_parse("HEAD~1")
+
+    Git::Pkgs::Models::Commit.create(
+      sha: parent_sha, message: "Initial",
+      author_name: "Test", author_email: "test@example.com",
+      committed_at: Time.now - 3600
+    )
+    head_commit = Git::Pkgs::Models::Commit.create(
+      sha: head_sha, message: "Remove deps",
+      author_name: "Test", author_email: "test@example.com",
+      committed_at: Time.now
+    )
+
+    manifest = Git::Pkgs::Models::Manifest.find_or_create(path: "Gemfile", ecosystem: "rubygems", kind: "manifest")
+    Git::Pkgs::Models::DependencyChange.create(
+      commit: head_commit, manifest: manifest, name: "sidekiq",
+      change_type: "removed", ecosystem: "rubygems", requirement: "~> 6.0"
+    )
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Diff.new(["#{parent_sha}..#{head_sha}"]).run
+      end
+    end
+
+    assert_includes output, "Removed:"
+    assert_includes output, "sidekiq"
+    refute_includes output, "Added:"
+    refute_includes output, "Modified:"
+  end
+
   def capture_stdout
     original = $stdout
     $stdout = StringIO.new
@@ -372,6 +479,15 @@ class Git::Pkgs::TestDiffCommand < Minitest::Test
     $stdout.string
   ensure
     $stdout = original
+  end
+
+  def capture_stderr
+    original = $stderr
+    $stderr = StringIO.new
+    yield
+    $stderr.string
+  ensure
+    $stderr = original
   end
 end
 
@@ -704,6 +820,65 @@ class Git::Pkgs::TestStatsCommand < Minitest::Test
 
   def teardown
     cleanup_test_repo
+  end
+
+  def test_stats_with_since_filter
+    old_time = Time.now - (30 * 24 * 60 * 60)
+    recent_time = Time.now - (5 * 24 * 60 * 60)
+
+    create_commit_with_author("alice", "alice@example.com", [
+      { name: "rails", change_type: "added" }
+    ], committed_at: old_time)
+    create_commit_with_author("bob", "bob@example.com", [
+      { name: "puma", change_type: "added" }
+    ], committed_at: recent_time)
+
+    since_date = (Time.now - (10 * 24 * 60 * 60)).strftime("%Y-%m-%d")
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Stats.new(["--since=#{since_date}"]).run
+      end
+    end
+
+    assert_includes output, "Since: #{since_date}"
+    assert_includes output, "puma"
+  end
+
+  def test_stats_with_until_filter
+    old_time = Time.now - (30 * 24 * 60 * 60)
+    recent_time = Time.now - (5 * 24 * 60 * 60)
+
+    create_commit_with_author("alice", "alice@example.com", [
+      { name: "rails", change_type: "added" }
+    ], committed_at: old_time)
+    create_commit_with_author("bob", "bob@example.com", [
+      { name: "puma", change_type: "added" }
+    ], committed_at: recent_time)
+
+    until_date = (Time.now - (10 * 24 * 60 * 60)).strftime("%Y-%m-%d")
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Stats.new(["--until=#{until_date}"]).run
+      end
+    end
+
+    assert_includes output, "Until: #{until_date}"
+  end
+
+  def test_stats_without_current_dependencies
+    # No branch/snapshot setup, just changes
+    create_commit_with_author("alice", "alice@example.com", [
+      { name: "rails", change_type: "added" }
+    ])
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Stats.new([]).run
+      end
+    end
+
+    assert_includes output, "Dependency Statistics"
+    assert_includes output, "Most Changed Dependencies"
   end
 
   def test_stats_by_author_shows_counts
@@ -1317,6 +1492,53 @@ class Git::Pkgs::TestInfoCommand < Minitest::Test
     assert_includes output, "Enabled:"
     assert_includes output, "rubygems"
     assert_includes output, "npm"
+  end
+
+  def test_info_format_size_bytes
+    cmd = Git::Pkgs::Commands::Info.new([])
+    assert_equal "100.0 B", cmd.send(:format_size, 100)
+  end
+
+  def test_info_format_size_kilobytes
+    cmd = Git::Pkgs::Commands::Info.new([])
+    assert_equal "1.5 KB", cmd.send(:format_size, 1536)
+  end
+
+  def test_info_format_size_megabytes
+    cmd = Git::Pkgs::Commands::Info.new([])
+    assert_equal "2.0 MB", cmd.send(:format_size, 2 * 1024 * 1024)
+  end
+
+  def test_info_format_size_gigabytes
+    cmd = Git::Pkgs::Commands::Info.new([])
+    assert_equal "1.0 GB", cmd.send(:format_size, 1024 * 1024 * 1024)
+  end
+
+  def test_info_multiple_branches
+    sha1 = SecureRandom.hex(20)
+    sha2 = SecureRandom.hex(20)
+    commit1 = Git::Pkgs::Models::Commit.create(
+      sha: sha1, message: "Test 1",
+      author_name: "Test", author_email: "test@example.com", committed_at: Time.now
+    )
+    commit2 = Git::Pkgs::Models::Commit.create(
+      sha: sha2, message: "Test 2",
+      author_name: "Test", author_email: "test@example.com", committed_at: Time.now
+    )
+
+    branch1 = Git::Pkgs::Models::Branch.create(name: "main", last_analyzed_sha: sha1)
+    branch2 = Git::Pkgs::Models::Branch.create(name: "develop", last_analyzed_sha: sha2)
+    Git::Pkgs::Models::BranchCommit.create(branch: branch1, commit: commit1, position: 1)
+    Git::Pkgs::Models::BranchCommit.create(branch: branch2, commit: commit2, position: 1)
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Info.new([]).run
+      end
+    end
+
+    assert_includes output, "main:"
+    assert_includes output, "develop:"
   end
 
   def capture_stdout
@@ -2010,6 +2232,88 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
     data = JSON.parse(output)
     assert_equal [], data
   end
+
+  def test_stale_filters_by_ecosystem
+    old_time = Time.now - (100 * 24 * 60 * 60)
+    commit = create_commit_with_changes("alice", [
+      { name: "rails", change_type: "added", ecosystem: "rubygems" }
+    ], committed_at: old_time)
+    create_branch_with_snapshot("main", commit, [
+      { name: "rails", ecosystem: "rubygems" }
+    ])
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Stale.new(["--ecosystem=npm"]).run
+      end
+    end
+
+    assert_includes output, "No dependencies found"
+  end
+
+  def test_stale_no_dependencies
+    sha = SecureRandom.hex(20)
+    commit = Git::Pkgs::Models::Commit.create(
+      sha: sha, message: "Empty",
+      author_name: "alice", author_email: "alice@example.com",
+      committed_at: Time.now, has_dependency_changes: false
+    )
+    branch = Git::Pkgs::Models::Branch.create(name: "main", last_analyzed_sha: sha)
+    Git::Pkgs::Models::BranchCommit.create(branch: branch, commit: commit, position: 1)
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Stale.new([]).run
+      end
+    end
+
+    assert_includes output, "No dependencies found"
+  end
+
+  def test_stale_no_branch_analysis
+    output = capture_stderr do
+      Dir.chdir(@test_dir) do
+        assert_raises(SystemExit) do
+          Git::Pkgs::Commands::Stale.new(["--branch=nonexistent"]).run
+        end
+      end
+    end
+
+    assert_includes output, "No analysis found"
+  end
+
+  def test_stale_text_output_formatting
+    old_time = Time.now - (50 * 24 * 60 * 60)  # 50 days ago
+    recent_time = Time.now - (10 * 24 * 60 * 60)  # 10 days ago
+
+    commit1 = create_commit_with_changes("alice", [
+      { name: "rails", change_type: "added", requirement: "~> 7.0" }
+    ], committed_at: old_time)
+    commit2 = create_commit_with_changes("bob", [
+      { name: "puma", change_type: "added", requirement: "~> 6.0" }
+    ], committed_at: recent_time)
+
+    create_branch_with_snapshot("main", commit2, [
+      { name: "rails", requirement: "~> 7.0" },
+      { name: "puma", requirement: "~> 6.0" }
+    ])
+
+    # Re-associate rails change with older commit
+    rails_change = Git::Pkgs::Models::DependencyChange.first(name: "rails")
+    rails_change.update(commit: commit1)
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Stale.new([]).run
+      end
+    end
+
+    assert_includes output, "Dependencies by last update"
+    assert_includes output, "rails"
+    assert_includes output, "puma"
+    # Rails should appear first (older)
+    assert output.index("rails") < output.index("puma")
+  end
 end
 
 class Git::Pkgs::TestTreeCommand < Git::Pkgs::CommandTestBase
@@ -2272,6 +2576,59 @@ class Git::Pkgs::TestBranchCommand < Git::Pkgs::CommandTestBase
     assert_includes output, "2 commits"
     assert_includes output, "1 with deps"
   end
+
+  def test_branch_remove_no_name
+    output = capture_stderr do
+      Dir.chdir(@test_dir) do
+        assert_raises(SystemExit) do
+          Git::Pkgs::Commands::Branch.new(["remove"]).run
+        end
+      end
+    end
+
+    assert_includes output, "Usage:"
+  end
+
+  def test_branch_add_no_name
+    output = capture_stderr do
+      Dir.chdir(@test_dir) do
+        assert_raises(SystemExit) do
+          Git::Pkgs::Commands::Branch.new(["add"]).run
+        end
+      end
+    end
+
+    assert_includes output, "Usage:"
+  end
+
+  def test_branch_default_config
+    cmd = Git::Pkgs::Commands::Branch.new([])
+    assert_equal 500, cmd.batch_size
+    assert_equal 50, cmd.snapshot_interval
+  end
+
+  def test_branch_no_subcommand_shows_help
+    output = capture_stdout do
+      Git::Pkgs::Commands::Branch.new([]).run
+    end
+
+    assert_includes output, "Usage:"
+    assert_includes output, "Subcommands:"
+  end
+
+  def test_branch_rm_alias
+    commit = create_commit_with_changes("alice", [{ name: "rails", change_type: "added" }])
+    branch = Git::Pkgs::Models::Branch.create(name: "feature", last_analyzed_sha: commit.sha)
+    Git::Pkgs::Models::BranchCommit.create(branch: branch, commit: commit, position: 1)
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Branch.new(["rm", "feature"]).run
+      end
+    end
+
+    assert_includes output, "Removed branch 'feature'"
+  end
 end
 
 class Git::Pkgs::TestInitCommand < Minitest::Test
@@ -2327,6 +2684,77 @@ class Git::Pkgs::TestInitCommand < Minitest::Test
     assert_match(/\d+ with dependency changes/, output)
   end
 
+  def test_init_already_exists_without_force
+    Dir.chdir(@test_dir) do
+      capture_stdout { Git::Pkgs::Commands::Init.new(["--no-hooks"]).run }
+    end
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Init.new(["--no-hooks"]).run
+      end
+    end
+
+    assert_includes output, "already exists"
+    assert_includes output, "--force"
+  end
+
+  def test_init_branch_not_found
+    output = capture_stderr do
+      Dir.chdir(@test_dir) do
+        assert_raises(SystemExit) do
+          Git::Pkgs::Commands::Init.new(["--branch=nonexistent", "--no-hooks"]).run
+        end
+      end
+    end
+
+    assert_includes output, "not found"
+  end
+
+  def test_init_with_specific_branch
+    Dir.chdir(@test_dir) do
+      system("git checkout -b feature", out: File::NULL, err: File::NULL)
+      add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "puma" => "~> 6.0" }))
+      commit("Add puma on feature")
+    end
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Init.new(["--branch=feature", "--no-hooks"]).run
+      end
+    end
+
+    assert_includes output, "feature"
+  end
+
+  def test_init_quiet_mode
+    Git::Pkgs.quiet = true
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Init.new(["--no-hooks"]).run
+      end
+    end
+
+    assert_equal "", output
+  ensure
+    Git::Pkgs.quiet = false
+  end
+
+  def test_init_batch_size_and_snapshot_interval
+    cmd = Git::Pkgs::Commands::Init.new([])
+    assert_equal 500, cmd.batch_size
+    assert_equal 50, cmd.snapshot_interval
+  end
+
+  def test_init_custom_batch_size
+    Git::Pkgs.batch_size = 100
+    cmd = Git::Pkgs::Commands::Init.new([])
+    assert_equal 100, cmd.batch_size
+  ensure
+    Git::Pkgs.batch_size = nil
+  end
+
   def capture_stdout
     original = $stdout
     $stdout = StringIO.new
@@ -2334,6 +2762,15 @@ class Git::Pkgs::TestInitCommand < Minitest::Test
     $stdout.string
   ensure
     $stdout = original
+  end
+
+  def capture_stderr
+    original = $stderr
+    $stderr = StringIO.new
+    yield
+    $stderr.string
+  ensure
+    $stderr = original
   end
 end
 

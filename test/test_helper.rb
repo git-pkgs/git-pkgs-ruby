@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
-require "simplecov"
-SimpleCov.start do
-  add_filter "/test/"
+unless ENV["DISABLE_SIMPLECOV"]
+  require "simplecov"
+  SimpleCov.start do
+    add_filter "/test/"
+    enable_coverage :branch
+  end
 end
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
