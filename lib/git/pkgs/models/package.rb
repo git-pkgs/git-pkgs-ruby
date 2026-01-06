@@ -6,6 +6,8 @@ module Git
       class Package < Sequel::Model
         STALE_THRESHOLD = 86400 # 24 hours
 
+        one_to_many :versions, key: :package_purl, primary_key: :purl
+
         dataset_module do
           def by_ecosystem(ecosystem)
             where(ecosystem: ecosystem)
@@ -18,6 +20,18 @@ module Git
           def synced
             where { vulns_synced_at >= Time.now - STALE_THRESHOLD }
           end
+        end
+
+        def parsed_purl
+          @parsed_purl ||= Purl.parse(purl)
+        end
+
+        def registry_url
+          parsed_purl.registry_url
+        end
+
+        def enriched?
+          !enriched_at.nil?
         end
 
         def needs_vuln_sync?

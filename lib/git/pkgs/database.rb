@@ -84,6 +84,7 @@ module Git
           Git::Pkgs::Models::DependencyChange,
           Git::Pkgs::Models::DependencySnapshot,
           Git::Pkgs::Models::Package,
+          Git::Pkgs::Models::Version,
           Git::Pkgs::Models::Vulnerability,
           Git::Pkgs::Models::VulnerabilityPackage
         ].each do |model|
@@ -199,6 +200,21 @@ module Git
           DateTime :updated_at
           index :purl, unique: true
           index [:ecosystem, :name]
+        end
+
+        @db.create_table?(:versions) do
+          primary_key :id
+          String :purl, null: false
+          String :package_purl, null: false
+          String :license
+          DateTime :published_at
+          String :integrity, text: true
+          String :source
+          DateTime :enriched_at
+          DateTime :created_at
+          DateTime :updated_at
+          index :purl, unique: true
+          index :package_purl
         end
 
         # Core vulnerability data (one row per CVE/GHSA)
