@@ -25,6 +25,10 @@ module Git
           deps = compute_dependencies_at_commit(target_commit, repo)
 
           # Apply filters
+          if @options[:manifest]
+            deps = deps.select { |d| d[:manifest_path] == @options[:manifest] }
+          end
+
           if @options[:ecosystem]
             deps = deps.select { |d| d[:ecosystem] == @options[:ecosystem] }
           end
@@ -131,6 +135,10 @@ module Git
 
             opts.on("-e", "--ecosystem=NAME", "Filter by ecosystem (npm, rubygems, etc.)") do |v|
               options[:ecosystem] = v
+            end
+
+            opts.on("-m", "--manifest=PATH", "Filter by manifest path") do |v|
+              options[:manifest] = v
             end
 
             opts.on("-t", "--type=TYPE", "Filter by dependency type") do |v|

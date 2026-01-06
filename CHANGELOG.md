@@ -5,6 +5,8 @@
 - `--format=json` support for `diff`, `tree`, `stale`, and `why` commands
 - Ignore go.sum (checksums only), treat go.mod as lockfile
 - Update ecosystems-bibliothecary to ~> 15.1
+- `--manifest` filter for `list` command to filter by manifest path
+- Stateless parsing API for forge integration (`Git::Pkgs.parse_file`, `parse_files`, `diff_file`)
 
 ## [0.6.1] - 2026-01-05
 

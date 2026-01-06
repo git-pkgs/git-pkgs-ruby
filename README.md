@@ -95,6 +95,7 @@ Snapshot Coverage
 git pkgs list
 git pkgs list --commit=abc123
 git pkgs list --ecosystem=rubygems
+git pkgs list --manifest=Gemfile
 ```
 
 Example output:
@@ -432,6 +433,37 @@ git-pkgs uses [ecosystems-bibliothecary](https://github.com/ecosyste-ms/biblioth
 Actions, BentoML, Bower, Cargo, Carthage, Clojars, CocoaPods, Cog, Conda, CPAN, CRAN, Docker, Dub, DVC, Elm, Go, Hackage, Haxelib, Hex, Homebrew, Julia, Maven, Meteor, MLflow, npm, NuGet, Ollama, Packagist, Pub, PyPI, RubyGems, Shards, SwiftPM, Vcpkg
 
 SBOM formats (CycloneDX, SPDX) are not supported as they duplicate information from the actual lockfiles.
+
+## Ruby API
+
+For embedding in other tools (like forges), git-pkgs provides a stateless parsing API that doesn't require initializing a database:
+
+```ruby
+require "git/pkgs"
+
+# Parse a single manifest file
+result = Git::Pkgs.parse_file("Gemfile", content)
+# => { platform: "rubygems", kind: "manifest", dependencies: [...] }
+
+# Parse multiple files at once
+results = Git::Pkgs.parse_files({
+  "Gemfile" => gemfile_content,
+  "package.json" => package_json_content
+})
+
+# Diff two versions of a manifest
+diff = Git::Pkgs.diff_file("Gemfile", old_content, new_content)
+# => { path: "Gemfile", platform: "rubygems", added: [...], modified: [...], removed: [...] }
+```
+
+The diff_file method returns modified dependencies with a `previous_requirement` field showing the old version.
+
+For database queries, connect to an existing database and use the Sequel models directly:
+
+```ruby
+Git::Pkgs::Database.connect(repo_git_dir)
+Git::Pkgs::Models::DependencyChange.where(name: "rails").all
+```
 
 ## Contributing
 

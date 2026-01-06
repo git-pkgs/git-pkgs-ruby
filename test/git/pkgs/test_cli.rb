@@ -1849,6 +1849,89 @@ class Git::Pkgs::TestListCommand < Git::Pkgs::CommandTestBase
 
     assert_includes output, "No dependencies found"
   end
+
+  def test_list_filters_by_manifest
+    sha = SecureRandom.hex(20)
+    commit = Git::Pkgs::Models::Commit.create(
+      sha: sha, message: "Add deps",
+      author_name: "alice", author_email: "alice@example.com",
+      committed_at: Time.now, has_dependency_changes: true
+    )
+
+    gemfile = Git::Pkgs::Models::Manifest.find_or_create(path: "Gemfile", ecosystem: "rubygems", kind: "manifest")
+    package_json = Git::Pkgs::Models::Manifest.find_or_create(path: "package.json", ecosystem: "npm", kind: "manifest")
+
+    branch = Git::Pkgs::Models::Branch.create(name: "main", last_analyzed_sha: sha)
+    Git::Pkgs::Models::BranchCommit.create(branch: branch, commit: commit, position: 1)
+
+    Git::Pkgs::Models::DependencySnapshot.create(
+      commit: commit, manifest: gemfile, name: "rails",
+      ecosystem: "rubygems", requirement: "~> 7.0", dependency_type: "runtime"
+    )
+    Git::Pkgs::Models::DependencySnapshot.create(
+      commit: commit, manifest: package_json, name: "lodash",
+      ecosystem: "npm", requirement: "^4.0", dependency_type: "runtime"
+    )
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::List.new(["--commit=#{sha}", "--manifest=Gemfile"]).run
+      end
+    end
+
+    assert_includes output, "rails"
+    refute_includes output, "lodash"
+  end
+
+  def test_list_manifest_filter_no_match
+    commit = create_commit_with_changes("alice", [
+      { name: "rails", change_type: "added" }
+    ])
+    create_branch_with_snapshot("main", commit, [{ name: "rails" }])
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::List.new(["--commit=#{commit.sha}", "--manifest=package.json"]).run
+      end
+    end
+
+    assert_includes output, "No dependencies found"
+  end
+
+  def test_list_manifest_filter_json_format
+    sha = SecureRandom.hex(20)
+    commit = Git::Pkgs::Models::Commit.create(
+      sha: sha, message: "Add deps",
+      author_name: "alice", author_email: "alice@example.com",
+      committed_at: Time.now, has_dependency_changes: true
+    )
+
+    gemfile = Git::Pkgs::Models::Manifest.find_or_create(path: "Gemfile", ecosystem: "rubygems", kind: "manifest")
+    package_json = Git::Pkgs::Models::Manifest.find_or_create(path: "package.json", ecosystem: "npm", kind: "manifest")
+
+    branch = Git::Pkgs::Models::Branch.create(name: "main", last_analyzed_sha: sha)
+    Git::Pkgs::Models::BranchCommit.create(branch: branch, commit: commit, position: 1)
+
+    Git::Pkgs::Models::DependencySnapshot.create(
+      commit: commit, manifest: gemfile, name: "rails",
+      ecosystem: "rubygems", requirement: "~> 7.0", dependency_type: "runtime"
+    )
+    Git::Pkgs::Models::DependencySnapshot.create(
+      commit: commit, manifest: package_json, name: "lodash",
+      ecosystem: "npm", requirement: "^4.0", dependency_type: "runtime"
+    )
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::List.new(["--commit=#{sha}", "--manifest=Gemfile", "--format=json"]).run
+      end
+    end
+
+    data = JSON.parse(output)
+    assert_equal 1, data.length
+    assert_equal "rails", data.first["name"]
+    assert_equal "Gemfile", data.first["manifest_path"]
+  end
 end
 
 class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
