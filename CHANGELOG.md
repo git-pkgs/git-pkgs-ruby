@@ -1,7 +1,10 @@
 ## [Unreleased]
 
+## [0.6.2] - 2026-01-06
+
 - `--format=json` support for `diff`, `tree`, `stale`, and `why` commands
 - Ignore go.sum (checksums only), treat go.mod as lockfile
+- Update ecosystems-bibliothecary to ~> 15.1
 
 ## [0.6.1] - 2026-01-05
 
