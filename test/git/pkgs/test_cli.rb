@@ -2631,6 +2631,213 @@ class Git::Pkgs::TestBranchCommand < Git::Pkgs::CommandTestBase
   end
 end
 
+# Integration tests for branch command with real git repos
+class Git::Pkgs::TestBranchCommandIntegration < Minitest::Test
+  include TestHelpers
+
+  def setup
+    Git::Pkgs::Database.disconnect
+    create_test_repo
+    # Create initial commit on main
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0" }))
+    commit("Add rails")
+    @git_dir = File.join(@test_dir, ".git")
+  end
+
+  def teardown
+    cleanup_test_repo
+  end
+
+  def test_branch_add_analyzes_commits
+    # First init main branch
+    Dir.chdir(@test_dir) do
+      capture_stdout { Git::Pkgs::Commands::Init.new(["--no-hooks"]).run }
+    end
+
+    # Create feature branch with new commits
+    Dir.chdir(@test_dir) do
+      system("git checkout -b feature", out: File::NULL, err: File::NULL)
+    end
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "puma" => "~> 6.0" }))
+    commit("Add puma")
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "puma" => "~> 6.0", "sidekiq" => "~> 7.0" }))
+    commit("Add sidekiq")
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Branch.new(["add", "feature"]).run
+      end
+    end
+
+    assert_includes output, "Analyzing branch: feature"
+    assert_includes output, "Done!"
+    assert_match(/Analyzed \d+ commits/, output)
+
+    # Verify branch was created in database
+    Git::Pkgs::Database.connect(@git_dir)
+    branch = Git::Pkgs::Models::Branch.first(name: "feature")
+    assert branch
+    assert branch.last_analyzed_sha
+    assert branch.commits.count >= 3  # Initial + 2 feature commits
+  end
+
+  def test_branch_add_tracks_dependency_changes
+    Dir.chdir(@test_dir) do
+      capture_stdout { Git::Pkgs::Commands::Init.new(["--no-hooks"]).run }
+      system("git checkout -b feature", out: File::NULL, err: File::NULL)
+    end
+
+    # Add a dependency
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "puma" => "~> 6.0" }))
+    commit("Add puma")
+
+    # Modify a dependency
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.1", "puma" => "~> 6.0" }))
+    commit("Update rails")
+
+    # Remove a dependency
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.1" }))
+    commit("Remove puma")
+
+    capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Branch.new(["add", "feature"]).run
+      end
+    end
+
+    Git::Pkgs::Database.connect(@git_dir)
+
+    # Check for added change
+    added = Git::Pkgs::Models::DependencyChange.first(name: "puma", change_type: "added")
+    assert added, "Should have recorded puma being added"
+
+    # Check for modified change
+    modified = Git::Pkgs::Models::DependencyChange.first(name: "rails", change_type: "modified")
+    assert modified, "Should have recorded rails being modified"
+    assert_equal "~> 7.0", modified.previous_requirement
+    assert_equal "~> 7.1", modified.requirement
+
+    # Check for removed change
+    removed = Git::Pkgs::Models::DependencyChange.first(name: "puma", change_type: "removed")
+    assert removed, "Should have recorded puma being removed"
+  end
+
+  def test_branch_add_creates_snapshots
+    Dir.chdir(@test_dir) do
+      capture_stdout { Git::Pkgs::Commands::Init.new(["--no-hooks"]).run }
+      system("git checkout -b feature", out: File::NULL, err: File::NULL)
+    end
+
+    # Create enough commits to trigger snapshot storage
+    5.times do |i|
+      add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "gem#{i}" => "~> 1.0" }))
+      commit("Add gem#{i}")
+    end
+
+    capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Branch.new(["add", "feature"]).run
+      end
+    end
+
+    Git::Pkgs::Database.connect(@git_dir)
+    assert Git::Pkgs::Models::Branch.first(name: "feature")
+
+    # Should have snapshots (at least the final one)
+    snapshots = Git::Pkgs::Models::DependencySnapshot.count
+    assert snapshots > 0, "Should have created snapshots"
+  end
+
+  def test_branch_add_handles_merge_commits
+    Dir.chdir(@test_dir) do
+      capture_stdout { Git::Pkgs::Commands::Init.new(["--no-hooks"]).run }
+
+      # Create feature branch
+      system("git checkout -b feature", out: File::NULL, err: File::NULL)
+    end
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "puma" => "~> 6.0" }))
+    commit("Add puma on feature")
+
+    Dir.chdir(@test_dir) do
+      # Go back to main and make a change
+      system("git checkout main", out: File::NULL, err: File::NULL)
+    end
+    add_file("README.md", "# Test")
+    commit("Add readme on main")
+
+    Dir.chdir(@test_dir) do
+      # Merge main into feature (creates merge commit)
+      system("git checkout feature", out: File::NULL, err: File::NULL)
+      system("git merge main -m 'Merge main'", out: File::NULL, err: File::NULL)
+    end
+
+    # Should handle merge commits gracefully (skip them)
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Branch.new(["add", "feature"]).run
+      end
+    end
+
+    assert_includes output, "Done!"
+  end
+
+  def test_branch_add_with_multiple_ecosystems
+    Dir.chdir(@test_dir) do
+      capture_stdout { Git::Pkgs::Commands::Init.new(["--no-hooks"]).run }
+      system("git checkout -b feature", out: File::NULL, err: File::NULL)
+    end
+
+    # Add both Gemfile and package.json
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0" }))
+    add_file("package.json", sample_package_json({ "lodash" => "^4.0.0" }))
+    commit("Add deps")
+
+    capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Branch.new(["add", "feature"]).run
+      end
+    end
+
+    Git::Pkgs::Database.connect(@git_dir)
+
+    # Check both ecosystems tracked
+    rubygems_manifest = Git::Pkgs::Models::Manifest.first(ecosystem: "rubygems")
+    npm_manifest = Git::Pkgs::Models::Manifest.first(ecosystem: "npm")
+
+    assert rubygems_manifest, "Should track rubygems manifest"
+    assert npm_manifest, "Should track npm manifest"
+  end
+
+  def test_branch_add_quiet_mode
+    Dir.chdir(@test_dir) do
+      capture_stdout { Git::Pkgs::Commands::Init.new(["--no-hooks"]).run }
+      system("git checkout -b feature", out: File::NULL, err: File::NULL)
+    end
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "puma" => "~> 6.0" }))
+    commit("Add puma")
+
+    Git::Pkgs.quiet = true
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Branch.new(["add", "feature"]).run
+      end
+    end
+    Git::Pkgs.quiet = false
+
+    # Should have minimal output in quiet mode
+    refute_includes output, "Processing commit"
+  end
+
+  def capture_stdout
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+end
+
 class Git::Pkgs::TestInitCommand < Minitest::Test
   include TestHelpers
 
