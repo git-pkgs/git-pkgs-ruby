@@ -13,6 +13,13 @@ It works across many ecosystems (Gemfile, package.json, Dockerfile, GitHub Actio
 ## Installation
 
 ```bash
+brew tap andrew/git-pkgs
+brew install git-pkgs
+```
+
+Or with RubyGems:
+
+```bash
 gem install git-pkgs
 ```
 
