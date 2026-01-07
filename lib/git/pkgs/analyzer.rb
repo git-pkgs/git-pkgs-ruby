@@ -288,6 +288,80 @@ module Git
         @blob_cache[cache_key] = { result: result, hits: 0 }
         result
       end
+
+      # Parse all manifest files at a given commit (stateless)
+      def dependencies_at_commit(rugged_commit)
+        deps = []
+        manifest_paths = find_manifest_paths_in_tree(rugged_commit.tree)
+
+        manifest_paths.each do |path|
+          result = parse_manifest_at_commit(rugged_commit, path)
+          next unless result && result[:dependencies]
+
+          result[:dependencies].each do |dep|
+            deps << {
+              manifest_path: path,
+              name: dep[:name],
+              ecosystem: result[:platform],
+              requirement: dep[:requirement],
+              dependency_type: dep[:type]
+            }
+          end
+        end
+
+        deps
+      end
+
+      # Compute changes between two commits (stateless)
+      def diff_commits(from_commit, to_commit)
+        from_deps = dependencies_at_commit(from_commit).group_by { |d| [d[:manifest_path], d[:name]] }
+        to_deps = dependencies_at_commit(to_commit).group_by { |d| [d[:manifest_path], d[:name]] }
+
+        added = []
+        modified = []
+        removed = []
+
+        # Find added and modified
+        to_deps.each do |key, to_list|
+          to_dep = to_list.first
+          if from_deps[key]
+            from_dep = from_deps[key].first
+            if from_dep[:requirement] != to_dep[:requirement]
+              modified << to_dep.merge(previous_requirement: from_dep[:requirement])
+            end
+          else
+            added << to_dep
+          end
+        end
+
+        # Find removed
+        from_deps.each do |key, from_list|
+          removed << from_list.first unless to_deps[key]
+        end
+
+        { added: added, modified: modified, removed: removed }
+      end
+
+      def find_manifest_paths_in_tree(tree, prefix = "")
+        paths = []
+
+        tree.each do |entry|
+          full_path = prefix.empty? ? entry[:name] : "#{prefix}/#{entry[:name]}"
+
+          if entry[:type] == :tree
+            subtree = repository.lookup(entry[:oid])
+            paths.concat(find_manifest_paths_in_tree(subtree, full_path))
+          elsif entry[:type] == :blob && full_path.match?(QUICK_MANIFEST_REGEX)
+            paths << full_path
+          end
+        end
+
+        identify_manifests_cached(paths)
+      end
+
+      def lookup(oid)
+        repository.lookup(oid)
+      end
     end
   end
 end

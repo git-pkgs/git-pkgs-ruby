@@ -98,6 +98,7 @@ git pkgs list
 git pkgs list --commit=abc123
 git pkgs list --ecosystem=rubygems
 git pkgs list --manifest=Gemfile
+git pkgs list --stateless           # parse manifests directly, no database needed
 ```
 
 Example output:
@@ -247,6 +248,7 @@ Shows dependencies sorted by how long since they were last changed in your repo.
 ```bash
 git pkgs diff --from=abc123 --to=def456
 git pkgs diff --from=HEAD~10
+git pkgs diff main..feature --stateless  # no database needed
 ```
 
 This shows added, removed, and modified packages with version info.
@@ -257,6 +259,7 @@ This shows added, removed, and modified packages with version info.
 git pkgs show              # show dependency changes in HEAD
 git pkgs show abc123       # specific commit
 git pkgs show HEAD~5       # relative ref
+git pkgs show --stateless  # no database needed
 ```
 
 Like `git show` but for dependencies. Shows what was added, modified, or removed in a single commit.
@@ -327,7 +330,7 @@ Useful for understanding the [database structure](docs/schema.md) or generating 
 
 ### CI usage
 
-You can run git-pkgs in CI to show dependency changes in pull requests:
+You can run git-pkgs in CI to show dependency changes in pull requests. Use `--stateless` to skip database initialization for faster runs:
 
 ```yaml
 # .github/workflows/deps.yml
@@ -346,8 +349,7 @@ jobs:
         with:
           ruby-version: '3.3'
       - run: gem install git-pkgs
-      - run: git pkgs init
-      - run: git pkgs diff --from=origin/${{ github.base_ref }} --to=HEAD
+      - run: git pkgs diff --from=origin/${{ github.base_ref }} --to=HEAD --stateless
 ```
 
 ### Diff driver

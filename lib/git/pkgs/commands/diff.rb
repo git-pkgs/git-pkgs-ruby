@@ -13,9 +13,7 @@ module Git
 
         def run
           repo = Repository.new
-          require_database(repo)
-
-          Database.connect(repo.git_dir)
+          use_stateless = @options[:stateless] || !Database.exists?(repo.git_dir)
 
           from_ref, to_ref = parse_range_argument
           from_ref ||= @options[:from]
@@ -29,6 +27,46 @@ module Git
 
           error "Could not resolve '#{from_ref}'. Check that the ref exists." unless from_sha
           error "Could not resolve '#{to_ref}'. Check that the ref exists." unless to_sha
+
+          if use_stateless
+            run_stateless(repo, from_sha, to_sha)
+          else
+            run_with_database(repo, from_sha, to_sha)
+          end
+        end
+
+        def run_stateless(repo, from_sha, to_sha)
+          from_commit = repo.lookup(from_sha)
+          to_commit = repo.lookup(to_sha)
+
+          analyzer = Analyzer.new(repo)
+          diff = analyzer.diff_commits(from_commit, to_commit)
+
+          if @options[:ecosystem]
+            diff[:added] = diff[:added].select { |d| d[:ecosystem] == @options[:ecosystem] }
+            diff[:modified] = diff[:modified].select { |d| d[:ecosystem] == @options[:ecosystem] }
+            diff[:removed] = diff[:removed].select { |d| d[:ecosystem] == @options[:ecosystem] }
+          end
+
+          if diff[:added].empty? && diff[:modified].empty? && diff[:removed].empty?
+            if @options[:format] == "json"
+              require "json"
+              puts JSON.pretty_generate({ from: from_sha[0..7], to: to_sha[0..7], added: [], modified: [], removed: [] })
+            else
+              empty_result "No dependency changes between #{from_sha[0..7]} and #{to_sha[0..7]}"
+            end
+            return
+          end
+
+          if @options[:format] == "json"
+            output_json_stateless(from_sha, to_sha, diff)
+          else
+            paginate { output_text_stateless(from_sha, to_sha, diff) }
+          end
+        end
+
+        def run_with_database(repo, from_sha, to_sha)
+          Database.connect(repo.git_dir)
 
           from_commit = Models::Commit.find_or_create_from_repo(repo, from_sha)
           to_commit = Models::Commit.find_or_create_from_repo(repo, to_sha)
@@ -154,6 +192,81 @@ module Git
           puts JSON.pretty_generate(data)
         end
 
+        def output_text_stateless(from_sha, to_sha, diff)
+          puts "Dependency changes from #{from_sha[0..7]} to #{to_sha[0..7]}:"
+          puts
+
+          if diff[:added].any?
+            puts Color.green("Added:")
+            diff[:added].group_by { |d| d[:name] }.each do |name, pkg_changes|
+              latest = pkg_changes.last
+              puts Color.green("  + #{name} #{latest[:requirement]} (#{latest[:manifest_path]})")
+            end
+            puts
+          end
+
+          if diff[:modified].any?
+            puts Color.yellow("Modified:")
+            diff[:modified].group_by { |d| d[:name] }.each do |name, pkg_changes|
+              latest = pkg_changes.last
+              puts Color.yellow("  ~ #{name} #{latest[:previous_requirement]} -> #{latest[:requirement]}")
+            end
+            puts
+          end
+
+          if diff[:removed].any?
+            puts Color.red("Removed:")
+            diff[:removed].group_by { |d| d[:name] }.each do |name, pkg_changes|
+              latest = pkg_changes.last
+              puts Color.red("  - #{name} (was #{latest[:requirement]})")
+            end
+            puts
+          end
+
+          added_count = Color.green("+#{diff[:added].map { |d| d[:name] }.uniq.count}")
+          removed_count = Color.red("-#{diff[:removed].map { |d| d[:name] }.uniq.count}")
+          modified_count = Color.yellow("~#{diff[:modified].map { |d| d[:name] }.uniq.count}")
+          puts "Summary: #{added_count} #{removed_count} #{modified_count}"
+        end
+
+        def output_json_stateless(from_sha, to_sha, diff)
+          require "json"
+
+          format_change = lambda do |change|
+            {
+              name: change[:name],
+              ecosystem: change[:ecosystem],
+              requirement: change[:requirement],
+              manifest: change[:manifest_path]
+            }
+          end
+
+          format_modified = lambda do |change|
+            {
+              name: change[:name],
+              ecosystem: change[:ecosystem],
+              previous_requirement: change[:previous_requirement],
+              requirement: change[:requirement],
+              manifest: change[:manifest_path]
+            }
+          end
+
+          data = {
+            from: from_sha[0..7],
+            to: to_sha[0..7],
+            added: diff[:added].map { |c| format_change.call(c) },
+            modified: diff[:modified].map { |c| format_modified.call(c) },
+            removed: diff[:removed].map { |c| format_change.call(c) },
+            summary: {
+              added: diff[:added].map { |d| d[:name] }.uniq.count,
+              modified: diff[:modified].map { |d| d[:name] }.uniq.count,
+              removed: diff[:removed].map { |d| d[:name] }.uniq.count
+            }
+          }
+
+          puts JSON.pretty_generate(data)
+        end
+
         def parse_range_argument
           return [nil, nil] if @args.empty?
 
@@ -201,6 +314,10 @@ module Git
 
             opts.on("--no-pager", "Do not pipe output into a pager") do
               options[:no_pager] = true
+            end
+
+            opts.on("--stateless", "Parse manifests directly without database") do
+              options[:stateless] = true
             end
 
             opts.on("-h", "--help", "Show this help") do

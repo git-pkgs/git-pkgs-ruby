@@ -13,16 +13,13 @@ module Git
 
         def run
           repo = Repository.new
-          require_database(repo)
+          use_stateless = @options[:stateless] || !Database.exists?(repo.git_dir)
 
-          Database.connect(repo.git_dir)
-
-          commit_sha = @options[:commit] || repo.head_sha
-          target_commit = Models::Commit.first(sha: commit_sha)
-
-          error "Commit #{commit_sha[0, 7]} not in database. Run 'git pkgs update' to index new commits." unless target_commit
-
-          deps = compute_dependencies_at_commit(target_commit, repo)
+          if use_stateless
+            deps = run_stateless(repo)
+          else
+            deps = run_with_database(repo)
+          end
 
           # Apply filters
           if @options[:manifest]
@@ -48,6 +45,27 @@ module Git
           else
             paginate { output_text(deps) }
           end
+        end
+
+        def run_stateless(repo)
+          commit_sha = @options[:commit] || repo.head_sha
+          rugged_commit = repo.lookup(repo.rev_parse(commit_sha))
+
+          error "Could not resolve '#{commit_sha}'. Check that the ref exists." unless rugged_commit
+
+          analyzer = Analyzer.new(repo)
+          analyzer.dependencies_at_commit(rugged_commit)
+        end
+
+        def run_with_database(repo)
+          Database.connect(repo.git_dir)
+
+          commit_sha = @options[:commit] || repo.head_sha
+          target_commit = Models::Commit.first(sha: commit_sha)
+
+          error "Commit #{commit_sha[0, 7]} not in database. Run 'git pkgs update' to index new commits." unless target_commit
+
+          compute_dependencies_at_commit(target_commit, repo)
         end
 
         def output_text(deps)
@@ -155,6 +173,10 @@ module Git
 
             opts.on("--no-pager", "Do not pipe output into a pager") do
               options[:no_pager] = true
+            end
+
+            opts.on("--stateless", "Parse manifests directly without database") do
+              options[:stateless] = true
             end
 
             opts.on("-h", "--help", "Show this help") do

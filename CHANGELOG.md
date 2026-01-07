@@ -1,6 +1,8 @@
 ## [Unreleased]
 
+- `--stateless` flag for `list`, `show`, and `diff` commands (auto-enabled when no database exists)
 - Fix `-f` flag conflict in `diff` command (was defined for both `--from` and `--format`)
+- Disable GPG signing in test suite for faster tests
 
 ## [0.6.2] - 2026-01-06
 

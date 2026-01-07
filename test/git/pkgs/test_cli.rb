@@ -3395,3 +3395,169 @@ class Git::Pkgs::TestDiffDriverCommand < Minitest::Test
     $stderr = original
   end
 end
+
+class Git::Pkgs::TestStatelessCommands < Minitest::Test
+  include TestHelpers
+
+  def setup
+    Git::Pkgs::Database.disconnect
+    create_test_repo
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0" }))
+    commit("Add rails")
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.0", "puma" => "~> 6.0" }))
+    commit("Add puma")
+    add_file("Gemfile", sample_gemfile({ "rails" => "~> 7.1", "puma" => "~> 6.0" }))
+    commit("Update rails")
+    @git_dir = File.join(@test_dir, ".git")
+  end
+
+  def teardown
+    cleanup_test_repo
+  end
+
+  def test_list_stateless_without_database
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::List.new(["--stateless"]).run
+      end
+    end
+
+    assert_includes output, "rails"
+    assert_includes output, "puma"
+    assert_includes output, "~> 7.1"
+  end
+
+  def test_list_stateless_with_commit
+    first_sha = Dir.chdir(@test_dir) { `git rev-list --max-parents=0 HEAD`.strip }
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::List.new(["--stateless", "--commit=#{first_sha}"]).run
+      end
+    end
+
+    assert_includes output, "rails"
+    assert_includes output, "~> 7.0"
+    refute_includes output, "puma"
+  end
+
+  def test_list_stateless_json_format
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::List.new(["--stateless", "--format=json"]).run
+      end
+    end
+
+    data = JSON.parse(output)
+    names = data.map { |d| d["name"] }
+    assert_includes names, "rails"
+    assert_includes names, "puma"
+  end
+
+  def test_list_auto_stateless_when_no_database
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::List.new([]).run
+      end
+    end
+
+    assert_includes output, "rails"
+    assert_includes output, "puma"
+  end
+
+  def test_show_stateless
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Show.new(["HEAD~1", "--stateless"]).run
+      end
+    end
+
+    assert_includes output, "Added:"
+    assert_includes output, "puma"
+  end
+
+  def test_show_stateless_modification
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Show.new(["HEAD", "--stateless"]).run
+      end
+    end
+
+    assert_includes output, "Modified:"
+    assert_includes output, "rails"
+    assert_includes output, "~> 7.0"
+    assert_includes output, "~> 7.1"
+  end
+
+  def test_show_stateless_json
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Show.new(["HEAD", "--stateless", "--format=json"]).run
+      end
+    end
+
+    data = JSON.parse(output)
+    assert data["commit"]
+    assert data["changes"]
+    modified = data["changes"].find { |c| c["change_type"] == "modified" }
+    assert modified
+    assert_equal "rails", modified["name"]
+  end
+
+  def test_diff_stateless
+    first_sha = Dir.chdir(@test_dir) { `git rev-list --max-parents=0 HEAD`.strip }
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Diff.new(["#{first_sha}..HEAD", "--stateless"]).run
+      end
+    end
+
+    assert_includes output, "Added:"
+    assert_includes output, "puma"
+    assert_includes output, "Modified:"
+    assert_includes output, "rails"
+  end
+
+  def test_diff_stateless_json
+    first_sha = Dir.chdir(@test_dir) { `git rev-list --max-parents=0 HEAD`.strip }
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Diff.new(["#{first_sha}..HEAD", "--stateless", "--format=json"]).run
+      end
+    end
+
+    data = JSON.parse(output)
+    assert data["added"]
+    assert data["modified"]
+    assert data["summary"]
+
+    added_names = data["added"].map { |d| d["name"] }
+    assert_includes added_names, "puma"
+
+    modified_names = data["modified"].map { |d| d["name"] }
+    assert_includes modified_names, "rails"
+  end
+
+  def test_diff_auto_stateless_when_no_database
+    first_sha = Dir.chdir(@test_dir) { `git rev-list --max-parents=0 HEAD`.strip }
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Diff.new(["#{first_sha}..HEAD"]).run
+      end
+    end
+
+    assert_includes output, "puma"
+  end
+
+  def capture_stdout
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+end
