@@ -13,7 +13,7 @@ It works across many ecosystems (Gemfile, package.json, Dockerfile, GitHub Actio
 ## Installation
 
 ```bash
-brew tap andrew/git-pkgs
+brew tap andrew/git-pkgs https://github.com/andrew/git-pkgs
 brew install git-pkgs
 ```
 

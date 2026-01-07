@@ -9,7 +9,8 @@ class GitPkgs < Formula
 
   def install
     ENV["GEM_HOME"] = libexec
-    system "bundle", "install", "--without", "development"
+    system "bundle", "config", "set", "--local", "without", "development"
+    system "bundle", "install"
     system "gem", "build", "git-pkgs.gemspec"
     system "gem", "install", "--ignore-dependencies", "git-pkgs-#{version}.gem"
     bin.install libexec/"bin/git-pkgs"
