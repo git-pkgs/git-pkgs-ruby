@@ -16,10 +16,8 @@ class GitPkgs < Formula
     system "git", "init"
     system "git", "add", "."
 
-    system "bundle", "config", "set", "--local", "without", "development"
-    system "bundle", "install"
     system "gem", "build", "git-pkgs.gemspec"
-    system "gem", "install", "--ignore-dependencies", "git-pkgs-#{version}.gem"
+    system "gem", "install", "--no-document", "git-pkgs-#{version}.gem"
     bin.install libexec/"bin/git-pkgs"
     bin.env_script_all_files(libexec/"bin", GEM_HOME: ENV.fetch("GEM_HOME", nil))
   end
