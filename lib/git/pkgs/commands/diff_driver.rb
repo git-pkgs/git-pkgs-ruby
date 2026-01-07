@@ -80,10 +80,10 @@ module Git
 
         def install_driver
           # Set up git config for textconv
-          system("git", "config", "diff.pkgs.textconv", "git-pkgs diff-driver")
+          git_config("diff.pkgs.textconv", "git-pkgs diff-driver")
 
           # Add to .gitattributes
-          gitattributes_path = File.join(Dir.pwd, ".gitattributes")
+          gitattributes_path = File.join(work_tree, ".gitattributes")
           existing = File.exist?(gitattributes_path) ? File.read(gitattributes_path) : ""
 
           new_entries = []
@@ -109,9 +109,9 @@ module Git
         end
 
         def uninstall_driver
-          system("git", "config", "--unset", "diff.pkgs.textconv")
+          git_config_unset("diff.pkgs.textconv")
 
-          gitattributes_path = File.join(Dir.pwd, ".gitattributes")
+          gitattributes_path = File.join(work_tree, ".gitattributes")
           if File.exist?(gitattributes_path)
             lines = File.readlines(gitattributes_path)
             lines.reject! { |line| line.include?("diff=pkgs") || line.include?("# git-pkgs") }
@@ -138,6 +138,26 @@ module Git
           result[:dependencies].map { |d| [d[:name], d] }.to_h
         rescue StandardError
           {}
+        end
+
+        def work_tree
+          Git::Pkgs.work_tree || Dir.pwd
+        end
+
+        def git_cmd
+          if Git::Pkgs.git_dir
+            ["git", "-C", work_tree]
+          else
+            ["git"]
+          end
+        end
+
+        def git_config(key, value)
+          system(*git_cmd, "config", key, value)
+        end
+
+        def git_config_unset(key)
+          system(*git_cmd, "config", "--unset", key)
         end
 
         def parse_options

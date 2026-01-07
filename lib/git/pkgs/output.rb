@@ -52,6 +52,28 @@ module Git
 
         error "Database not initialized. Run 'git pkgs init' first."
       end
+
+      # Pick best author from commit, preferring humans over bots
+      def best_author(commit)
+        author_name = commit.respond_to?(:author_name) ? commit.author_name : commit[:author_name]
+        message = commit.respond_to?(:message) ? commit.message : commit[:message]
+
+        authors = [author_name] + parse_coauthors(message)
+
+        # Prefer human authors over bots
+        human = authors.find { |a| !bot_author?(a) }
+        human || authors.first
+      end
+
+      def parse_coauthors(message)
+        return [] unless message
+
+        message.scan(/^Co-authored-by:([^<]+)<[^>]+>/i).flatten.map(&:strip)
+      end
+
+      def bot_author?(name)
+        name =~ /\[bot\]$|^dependabot|^renovate|^github-actions/i
+      end
     end
   end
 end

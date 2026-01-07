@@ -15,7 +15,7 @@ module Git
   module Pkgs
     class Database
       DB_FILE = "pkgs.sqlite3"
-      SCHEMA_VERSION = 1
+      SCHEMA_VERSION = 2
 
       class << self
         attr_accessor :db
@@ -82,7 +82,10 @@ module Git
           Git::Pkgs::Models::Commit,
           Git::Pkgs::Models::Manifest,
           Git::Pkgs::Models::DependencyChange,
-          Git::Pkgs::Models::DependencySnapshot
+          Git::Pkgs::Models::DependencySnapshot,
+          Git::Pkgs::Models::Package,
+          Git::Pkgs::Models::Vulnerability,
+          Git::Pkgs::Models::VulnerabilityPackage
         ].each do |model|
           model.dataset = @db[model.table_name]
           # Clear all cached association data that may reference old db
@@ -157,6 +160,7 @@ module Git
           foreign_key :manifest_id, :manifests
           String :name, null: false
           String :ecosystem
+          String :purl
           String :change_type, null: false
           String :requirement
           String :previous_requirement
@@ -171,10 +175,61 @@ module Git
           foreign_key :manifest_id, :manifests
           String :name, null: false
           String :ecosystem
+          String :purl
           String :requirement
           String :dependency_type
           DateTime :created_at
           DateTime :updated_at
+        end
+
+        @db.create_table?(:packages) do
+          primary_key :id
+          String :purl, null: false
+          String :ecosystem, null: false
+          String :name, null: false
+          String :latest_version
+          String :license
+          String :description, text: true
+          String :homepage
+          String :repository_url
+          String :source
+          DateTime :enriched_at
+          DateTime :vulns_synced_at
+          DateTime :created_at
+          DateTime :updated_at
+          index :purl, unique: true
+          index [:ecosystem, :name]
+        end
+
+        # Core vulnerability data (one row per CVE/GHSA)
+        @db.create_table?(:vulnerabilities) do
+          String :id, primary_key: true          # CVE-2024-1234, GHSA-xxxx, etc.
+          String :aliases, text: true            # comma-separated other IDs for same vuln
+          String :severity                       # critical, high, medium, low
+          Float :cvss_score
+          String :cvss_vector
+          String :references, text: true         # JSON array of {type, url} objects
+          String :summary, text: true
+          String :details, text: true
+          DateTime :published_at                 # when vuln was disclosed
+          DateTime :withdrawn_at                 # when vuln was retracted (if ever)
+          DateTime :modified_at                  # when OSV record was last modified
+          DateTime :fetched_at, null: false      # when we last fetched from OSV
+        end
+
+        # Which packages are affected by each vulnerability
+        # One vuln can affect multiple packages, each with different version ranges
+        @db.create_table?(:vulnerability_packages) do
+          primary_key :id
+          String :vulnerability_id, null: false
+          String :ecosystem, null: false         # OSV ecosystem name
+          String :package_name, null: false
+          String :affected_versions, text: true  # version range expression
+          String :fixed_versions, text: true     # comma-separated list
+          foreign_key [:vulnerability_id], :vulnerabilities
+          index [:ecosystem, :package_name]
+          index [:vulnerability_id]
+          unique [:vulnerability_id, :ecosystem, :package_name]
         end
 
         set_version
@@ -186,6 +241,7 @@ module Git
         @db.alter_table(:dependency_changes) do
           add_index :name, if_not_exists: true
           add_index :ecosystem, if_not_exists: true
+          add_index :purl, if_not_exists: true
           add_index [:commit_id, :name], if_not_exists: true
         end
 
@@ -193,6 +249,7 @@ module Git
           add_index [:commit_id, :manifest_id, :name], unique: true, name: "idx_snapshots_unique", if_not_exists: true
           add_index :name, if_not_exists: true
           add_index :ecosystem, if_not_exists: true
+          add_index :purl, if_not_exists: true
         end
       end
 
@@ -218,10 +275,83 @@ module Git
       def self.check_version!
         return unless needs_upgrade?
 
+        migrate!
+      end
+
+      def self.migrate!
         stored = stored_version || 0
-        $stderr.puts "Database schema is outdated (version #{stored}, current is #{SCHEMA_VERSION})."
-        $stderr.puts "Run 'git pkgs upgrade' to update."
-        exit 1
+
+        # Migration from v1 to v2: add vuln tables
+        if stored < 2
+          migrate_to_v2!
+        end
+
+        set_version
+        refresh_models
+      end
+
+      def self.migrate_to_v2!
+        @db.create_table?(:packages) do
+          primary_key :id
+          String :purl, null: false
+          String :ecosystem, null: false
+          String :name, null: false
+          String :latest_version
+          String :license
+          String :description, text: true
+          String :homepage
+          String :repository_url
+          String :source
+          DateTime :enriched_at
+          DateTime :vulns_synced_at
+          DateTime :created_at
+          DateTime :updated_at
+          index :purl, unique: true
+          index [:ecosystem, :name]
+        end
+
+        @db.create_table?(:vulnerabilities) do
+          String :id, primary_key: true
+          String :aliases, text: true
+          String :severity
+          Float :cvss_score
+          String :cvss_vector
+          String :references, text: true
+          String :summary, text: true
+          String :details, text: true
+          DateTime :published_at
+          DateTime :withdrawn_at
+          DateTime :modified_at
+          DateTime :fetched_at, null: false
+        end
+
+        @db.create_table?(:vulnerability_packages) do
+          primary_key :id
+          String :vulnerability_id, null: false
+          String :ecosystem, null: false
+          String :package_name, null: false
+          String :affected_versions, text: true
+          String :fixed_versions, text: true
+          foreign_key [:vulnerability_id], :vulnerabilities
+          index [:ecosystem, :package_name]
+          index [:vulnerability_id]
+          unique [:vulnerability_id, :ecosystem, :package_name]
+        end
+
+        # Add purl column to existing tables if missing
+        unless @db.schema(:dependency_changes).any? { |col, _| col == :purl }
+          @db.alter_table(:dependency_changes) do
+            add_column :purl, String
+            add_index :purl, if_not_exists: true
+          end
+        end
+
+        unless @db.schema(:dependency_snapshots).any? { |col, _| col == :purl }
+          @db.alter_table(:dependency_snapshots) do
+            add_column :purl, String
+            add_index :purl, if_not_exists: true
+          end
+        end
       end
 
       def self.optimize_for_bulk_writes

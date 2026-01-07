@@ -41,6 +41,7 @@ module Git
               key = [s.manifest.path, s.name]
               snapshot[key] = {
                 ecosystem: s.ecosystem,
+                purl: s.purl,
                 requirement: s.requirement,
                 dependency_type: s.dependency_type
               }
@@ -88,6 +89,7 @@ module Git
                     manifest: manifest,
                     name: change[:name],
                     ecosystem: change[:ecosystem],
+                    purl: change[:purl],
                     change_type: change[:change_type],
                     requirement: change[:requirement],
                     previous_requirement: change[:previous_requirement],
@@ -105,6 +107,7 @@ module Git
                     name: name
                   ) do |s|
                     s.ecosystem = dep_info[:ecosystem]
+                    s.purl = dep_info[:purl]
                     s.requirement = dep_info[:requirement]
                     s.dependency_type = dep_info[:dependency_type]
                   end

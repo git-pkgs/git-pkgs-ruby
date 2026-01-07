@@ -102,6 +102,7 @@ module Git
                     manifest_id: manifest_ids[c[:manifest_path]],
                     name: c[:name],
                     ecosystem: c[:ecosystem],
+                    purl: c[:purl],
                     change_type: c[:change_type],
                     requirement: c[:requirement],
                     previous_requirement: c[:previous_requirement],
@@ -121,6 +122,7 @@ module Git
                     manifest_id: manifest_ids[s[:manifest_path]],
                     name: s[:name],
                     ecosystem: s[:ecosystem],
+                    purl: s[:purl],
                     requirement: s[:requirement],
                     dependency_type: s[:dependency_type],
                     created_at: now,
@@ -185,6 +187,7 @@ module Git
                   manifest_path: manifest_key,
                   name: change[:name],
                   ecosystem: change[:ecosystem],
+                  purl: change[:purl],
                   change_type: change[:change_type],
                   requirement: change[:requirement],
                   previous_requirement: change[:previous_requirement],
@@ -202,6 +205,7 @@ module Git
                     manifest_path: manifest_path,
                     name: name,
                     ecosystem: dep_info[:ecosystem],
+                    purl: dep_info[:purl],
                     requirement: dep_info[:requirement],
                     dependency_type: dep_info[:dependency_type]
                   }
@@ -222,6 +226,7 @@ module Git
                   manifest_path: manifest_path,
                   name: name,
                   ecosystem: dep_info[:ecosystem],
+                  purl: dep_info[:purl],
                   requirement: dep_info[:requirement],
                   dependency_type: dep_info[:dependency_type]
                 }

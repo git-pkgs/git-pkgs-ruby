@@ -113,24 +113,6 @@ module Git
           end
         end
 
-        def best_author(commit)
-          authors = [commit.author_name] + parse_coauthors(commit.message)
-
-          # Prefer human authors over bots
-          human = authors.find { |a| !bot_author?(a) }
-          human || authors.first
-        end
-
-        def parse_coauthors(message)
-          return [] unless message
-
-          message.scan(/^Co-authored-by:([^<]+)<[^>]+>/i).flatten.map(&:strip)
-        end
-
-        def bot_author?(name)
-          name =~ /\[bot\]$|^dependabot|^renovate|^github-actions/i
-        end
-
         def parse_options
           options = {}
 

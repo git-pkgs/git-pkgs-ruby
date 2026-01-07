@@ -7,6 +7,7 @@ gemspec
 group :development do
   # gem "ecosystems-bibliothecary", git: "https://github.com/ecosyste-ms/bibliothecary.git", require: "bibliothecary"
   # gem "ecosystems-bibliothecary", path: "../ecosystems/bibliothecary", require: "bibliothecary"
+  gem "sarif-ruby", git: "https://github.com/andrew/sarif.git", require: "sarif"
   gem "ostruct"
 
   gem "irb"
@@ -14,4 +15,6 @@ group :development do
   gem "minitest"
   gem "benchmark"
   gem "simplecov"
+  gem "webmock"
+  gem "json_schemer"
 end

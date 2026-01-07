@@ -259,6 +259,18 @@ git pkgs outdated               # alias for stale
 
 Shows dependencies sorted by how long since they were last changed in your repo. Useful for finding packages that may have been forgotten or need review.
 
+### Vulnerability scanning
+
+```bash
+git pkgs vulns                  # scan current dependencies for known CVEs
+git pkgs vulns -s high          # only critical and high severity
+git pkgs vulns blame            # who introduced each vulnerability
+git pkgs vulns praise           # who fixed vulnerabilities
+git pkgs vulns exposure --all-time --summary  # remediation metrics
+```
+
+Uses the [OSV database](https://osv.dev) to check your dependencies against known security advisories. Because git-pkgs tracks the full history, it can show who introduced and fixed each vulnerability. See [docs/vulns.md](docs/vulns.md) for full documentation.
+
 ### Diff between commits
 
 ```bash

@@ -35,4 +35,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "sequel", ">= 5.0"
   spec.add_dependency "sqlite3", ">= 2.0"
   spec.add_dependency "ecosystems-bibliothecary", "~> 15.2"
+  spec.add_dependency "vers", "~> 1.0"
+  spec.add_dependency "purl", "~> 1.7"
+  spec.add_dependency "sarif-ruby"
 end

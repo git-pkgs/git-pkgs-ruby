@@ -68,6 +68,10 @@ module Git
         Config.configure_bibliothecary
       end
 
+      def generate_purl(ecosystem, name)
+        Ecosystems.generate_purl(ecosystem, name)
+      end
+
       # Quick check if any paths might be manifests (fast regex check)
       def might_have_manifests?(paths)
         paths.any? { |p| p.match?(QUICK_MANIFEST_REGEX) }
@@ -134,6 +138,7 @@ module Git
               ecosystem: result[:platform],
               kind: result[:kind],
               name: dep[:name],
+              purl: generate_purl(result[:platform], dep[:name]),
               change_type: "added",
               requirement: dep[:requirement],
               dependency_type: dep[:type]
@@ -143,6 +148,7 @@ module Git
             new_snapshot[key] = {
               ecosystem: result[:platform],
               kind: result[:kind],
+              purl: generate_purl(result[:platform], dep[:name]),
               requirement: dep[:requirement],
               dependency_type: dep[:type]
             }
@@ -170,6 +176,7 @@ module Git
               ecosystem: after_result[:platform],
               kind: after_result[:kind],
               name: name,
+              purl: generate_purl(after_result[:platform], name),
               change_type: "added",
               requirement: dep[:requirement],
               dependency_type: dep[:type]
@@ -179,6 +186,7 @@ module Git
             new_snapshot[key] = {
               ecosystem: after_result[:platform],
               kind: after_result[:kind],
+              purl: generate_purl(after_result[:platform], name),
               requirement: dep[:requirement],
               dependency_type: dep[:type]
             }
@@ -191,6 +199,7 @@ module Git
               ecosystem: before_result[:platform],
               kind: before_result[:kind],
               name: name,
+              purl: generate_purl(before_result[:platform], name),
               change_type: "removed",
               requirement: dep[:requirement],
               dependency_type: dep[:type]
@@ -210,6 +219,7 @@ module Git
                 ecosystem: after_result[:platform],
                 kind: after_result[:kind],
                 name: name,
+                purl: generate_purl(after_result[:platform], name),
                 change_type: "modified",
                 requirement: after_dep[:requirement],
                 previous_requirement: before_dep[:requirement],
@@ -220,6 +230,7 @@ module Git
               new_snapshot[key] = {
                 ecosystem: after_result[:platform],
                 kind: after_result[:kind],
+                purl: generate_purl(after_result[:platform], name),
                 requirement: after_dep[:requirement],
                 dependency_type: after_dep[:type]
               }
@@ -238,6 +249,7 @@ module Git
               ecosystem: result[:platform],
               kind: result[:kind],
               name: dep[:name],
+              purl: generate_purl(result[:platform], dep[:name]),
               change_type: "removed",
               requirement: dep[:requirement],
               dependency_type: dep[:type]
@@ -311,9 +323,11 @@ module Git
           result[:dependencies].each do |dep|
             deps << {
               manifest_path: path,
+              manifest_kind: result[:kind],
               name: dep[:name],
               ecosystem: result[:platform],
               kind: result[:kind],
+              purl: generate_purl(result[:platform], dep[:name]),
               requirement: dep[:requirement],
               dependency_type: dep[:type]
             }
@@ -372,6 +386,39 @@ module Git
 
       def lookup(oid)
         repository.lookup(oid)
+      end
+
+      # Pair manifest dependencies with their corresponding lockfile versions.
+      # Groups by directory + ecosystem + name, preferring lockfile over manifest.
+      # Can be called as instance method or class method.
+      def pair_manifests_with_lockfiles(deps)
+        self.class.pair_manifests_with_lockfiles(deps)
+      end
+
+      def self.pair_manifests_with_lockfiles(deps)
+        # Group by (directory, ecosystem, name)
+        groups = {}
+        deps.each do |dep|
+          dir = File.dirname(dep[:manifest_path])
+          dir = "" if dir == "."
+          key = [dir, dep[:ecosystem], dep[:name]]
+          groups[key] ||= []
+          groups[key] << dep
+        end
+
+        # For each group, pick the best entry (lockfile preferred)
+        groups.values.map do |group_deps|
+          lockfile_dep = group_deps.find { |d| d[:manifest_kind] == "lockfile" }
+          manifest_dep = group_deps.find { |d| d[:manifest_kind] == "manifest" }
+
+          # Prefer lockfile version, fall back to manifest
+          lockfile_dep || manifest_dep || group_deps.first
+        end.compact
+      end
+
+      # Filter to only lockfile dependencies
+      def self.lockfile_dependencies(deps)
+        deps.select { |d| d[:manifest_kind] == "lockfile" }
       end
     end
   end

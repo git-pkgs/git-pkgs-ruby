@@ -1751,7 +1751,7 @@ class Git::Pkgs::CommandTestBase < Minitest::Test
     cleanup_test_repo
   end
 
-  def create_commit_with_changes(author, changes, message: "Test commit", committed_at: Time.now)
+  def create_commit_with_changes(author, changes, message: "Test commit", committed_at: Time.now, manifest_kind: "manifest")
     sha = SecureRandom.hex(20)
     commit = Git::Pkgs::Models::Commit.create(
       sha: sha,
@@ -1762,10 +1762,11 @@ class Git::Pkgs::CommandTestBase < Minitest::Test
       has_dependency_changes: changes.any?
     )
 
+    manifest_path = manifest_kind == "lockfile" ? "Gemfile.lock" : "Gemfile"
     manifest = Git::Pkgs::Models::Manifest.find_or_create(
-      path: "Gemfile",
+      path: manifest_path,
       ecosystem: "rubygems",
-      kind: "manifest"
+      kind: manifest_kind
     )
 
     changes.each do |change|
@@ -1783,14 +1784,15 @@ class Git::Pkgs::CommandTestBase < Minitest::Test
     commit
   end
 
-  def create_branch_with_snapshot(branch_name, commit, dependencies)
+  def create_branch_with_snapshot(branch_name, commit, dependencies, manifest_kind: "manifest")
     branch = Git::Pkgs::Models::Branch.create(name: branch_name, last_analyzed_sha: commit.sha)
     Git::Pkgs::Models::BranchCommit.create(branch: branch, commit: commit, position: 1)
 
+    manifest_path = manifest_kind == "lockfile" ? "Gemfile.lock" : "Gemfile"
     manifest = Git::Pkgs::Models::Manifest.find_or_create(
-      path: "Gemfile",
+      path: manifest_path,
       ecosystem: "rubygems",
-      kind: "manifest"
+      kind: manifest_kind
     )
 
     dependencies.each do |dep|
@@ -2160,11 +2162,11 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
   def test_stale_shows_dependencies_by_last_update
     old_time = Time.now - (100 * 24 * 60 * 60)  # 100 days ago
     commit = create_commit_with_changes("alice", [
-      { name: "rails", change_type: "added", requirement: "~> 7.0" }
-    ], committed_at: old_time)
+      { name: "rails", change_type: "added", requirement: "7.0.0" }
+    ], committed_at: old_time, manifest_kind: "lockfile")
     create_branch_with_snapshot("main", commit, [
-      { name: "rails", requirement: "~> 7.0" }
-    ])
+      { name: "rails", requirement: "7.0.0" }
+    ], manifest_kind: "lockfile")
 
     output = capture_stdout do
       Dir.chdir(@test_dir) do
@@ -2180,8 +2182,8 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
     recent_time = Time.now - (5 * 24 * 60 * 60)  # 5 days ago
     commit = create_commit_with_changes("alice", [
       { name: "rails", change_type: "added" }
-    ], committed_at: recent_time)
-    create_branch_with_snapshot("main", commit, [{ name: "rails" }])
+    ], committed_at: recent_time, manifest_kind: "lockfile")
+    create_branch_with_snapshot("main", commit, [{ name: "rails" }], manifest_kind: "lockfile")
 
     output = capture_stdout do
       Dir.chdir(@test_dir) do
@@ -2195,11 +2197,11 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
   def test_stale_json_format
     old_time = Time.now - (100 * 24 * 60 * 60)  # 100 days ago
     commit = create_commit_with_changes("alice", [
-      { name: "rails", change_type: "added", requirement: "~> 7.0" }
-    ], committed_at: old_time)
+      { name: "rails", change_type: "added", requirement: "7.0.0" }
+    ], committed_at: old_time, manifest_kind: "lockfile")
     create_branch_with_snapshot("main", commit, [
-      { name: "rails", requirement: "~> 7.0" }
-    ])
+      { name: "rails", requirement: "7.0.0" }
+    ], manifest_kind: "lockfile")
 
     output = capture_stdout do
       Dir.chdir(@test_dir) do
@@ -2211,7 +2213,7 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
     assert_equal 1, data.length
     assert_equal "rails", data.first["name"]
     assert_equal "rubygems", data.first["ecosystem"]
-    assert_equal "~> 7.0", data.first["requirement"]
+    assert_equal "7.0.0", data.first["requirement"]
     assert data.first["days_ago"] >= 99
     assert data.first.key?("last_updated")
   end
@@ -2220,8 +2222,8 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
     recent_time = Time.now - (5 * 24 * 60 * 60)  # 5 days ago
     commit = create_commit_with_changes("alice", [
       { name: "rails", change_type: "added" }
-    ], committed_at: recent_time)
-    create_branch_with_snapshot("main", commit, [{ name: "rails" }])
+    ], committed_at: recent_time, manifest_kind: "lockfile")
+    create_branch_with_snapshot("main", commit, [{ name: "rails" }], manifest_kind: "lockfile")
 
     output = capture_stdout do
       Dir.chdir(@test_dir) do
@@ -2237,10 +2239,10 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
     old_time = Time.now - (100 * 24 * 60 * 60)
     commit = create_commit_with_changes("alice", [
       { name: "rails", change_type: "added", ecosystem: "rubygems" }
-    ], committed_at: old_time)
+    ], committed_at: old_time, manifest_kind: "lockfile")
     create_branch_with_snapshot("main", commit, [
       { name: "rails", ecosystem: "rubygems" }
-    ])
+    ], manifest_kind: "lockfile")
 
     output = capture_stdout do
       Dir.chdir(@test_dir) do
@@ -2287,16 +2289,16 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
     recent_time = Time.now - (10 * 24 * 60 * 60)  # 10 days ago
 
     commit1 = create_commit_with_changes("alice", [
-      { name: "rails", change_type: "added", requirement: "~> 7.0" }
-    ], committed_at: old_time)
+      { name: "rails", change_type: "added", requirement: "7.0.0" }
+    ], committed_at: old_time, manifest_kind: "lockfile")
     commit2 = create_commit_with_changes("bob", [
-      { name: "puma", change_type: "added", requirement: "~> 6.0" }
-    ], committed_at: recent_time)
+      { name: "puma", change_type: "added", requirement: "6.0.0" }
+    ], committed_at: recent_time, manifest_kind: "lockfile")
 
     create_branch_with_snapshot("main", commit2, [
-      { name: "rails", requirement: "~> 7.0" },
-      { name: "puma", requirement: "~> 6.0" }
-    ])
+      { name: "rails", requirement: "7.0.0" },
+      { name: "puma", requirement: "6.0.0" }
+    ], manifest_kind: "lockfile")
 
     # Re-associate rails change with older commit
     rails_change = Git::Pkgs::Models::DependencyChange.first(name: "rails")
@@ -2313,6 +2315,28 @@ class Git::Pkgs::TestStaleCommand < Git::Pkgs::CommandTestBase
     assert_includes output, "puma"
     # Rails should appear first (older)
     assert output.index("rails") < output.index("puma")
+  end
+
+  def test_stale_only_shows_lockfile_deps
+    # Stale command should only show lockfile dependencies, not manifest constraints
+    old_time = Time.now - (100 * 24 * 60 * 60)
+    commit = create_commit_with_changes("alice", [
+      { name: "rails", change_type: "added", requirement: ">= 0" }
+    ], committed_at: old_time)
+
+    # Create manifest entry (should be ignored)
+    create_branch_with_snapshot("main", commit, [
+      { name: "rails", requirement: ">= 0" }
+    ], manifest_kind: "manifest")
+
+    output = capture_stdout do
+      Dir.chdir(@test_dir) do
+        Git::Pkgs::Commands::Stale.new([]).run
+      end
+    end
+
+    # Should not find manifest-only dependencies
+    assert_includes output, "No dependencies found"
   end
 end
 

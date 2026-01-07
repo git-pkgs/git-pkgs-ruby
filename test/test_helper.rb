@@ -18,18 +18,23 @@ require "git/pkgs"
 $VERBOSE = original_verbose
 
 require "minitest/autorun"
+
+# Parallel test execution is opt-in per test class.
+# Add `parallelize_me!` to test classes that:
+# 1. Don't use Dir.chdir
+# 2. Don't capture $stdout
+# 3. Don't modify global singletons (Bibliothecary.configuration, etc.)
+
 require "fileutils"
 require "tmpdir"
 
 module TestHelpers
   def create_test_repo
     @test_dir = Dir.mktmpdir("git-pkgs-test")
-    Dir.chdir(@test_dir) do
-      system("git init --initial-branch=main", out: File::NULL, err: File::NULL)
-      system("git config user.email 'test@example.com'", out: File::NULL)
-      system("git config user.name 'Test User'", out: File::NULL)
-      system("git config commit.gpgsign false", out: File::NULL)
-    end
+    git("init --initial-branch=main")
+    git("config user.email 'test@example.com'")
+    git("config user.name 'Test User'")
+    git("config commit.gpgsign false")
     @test_dir
   end
 
@@ -42,15 +47,26 @@ module TestHelpers
     full_path = File.join(@test_dir, path)
     FileUtils.mkdir_p(File.dirname(full_path))
     File.write(full_path, content)
-    Dir.chdir(@test_dir) do
-      system("git add #{path}", out: File::NULL, err: File::NULL)
-    end
+    git("add #{path}")
   end
 
   def commit(message)
-    Dir.chdir(@test_dir) do
-      system("git commit -m '#{message}'", out: File::NULL, err: File::NULL)
-    end
+    git("commit -m '#{message}'")
+  end
+
+  def git(cmd)
+    system("git -C #{@test_dir} #{cmd}", out: File::NULL, err: File::NULL)
+  end
+
+  def run_cli(*args)
+    old_git_dir = Git::Pkgs.git_dir
+    old_work_tree = Git::Pkgs.work_tree
+    Git::Pkgs.git_dir = File.join(@test_dir, ".git")
+    Git::Pkgs.work_tree = @test_dir
+    capture_stdout { Git::Pkgs::CLI.run(args.flatten) }
+  ensure
+    Git::Pkgs.git_dir = old_git_dir
+    Git::Pkgs.work_tree = old_work_tree
   end
 
   def sample_gemfile(gems = {})

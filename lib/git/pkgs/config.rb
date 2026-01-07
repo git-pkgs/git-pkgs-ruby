@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "bibliothecary"
+require "open3"
 
 module Git
   module Pkgs
@@ -52,7 +53,13 @@ module Git
       end
 
       def self.read_config_list(key)
-        `git config --get-all #{key} 2>/dev/null`.split("\n").map(&:strip).reject(&:empty?)
+        args = if Git::Pkgs.work_tree
+                 ["git", "-C", Git::Pkgs.work_tree.to_s, "config", "--get-all", key.to_s]
+               else
+                 ["git", "config", "--get-all", key.to_s]
+               end
+        stdout, _stderr, _status = Open3.capture3(*args)
+        stdout.split("\n").map(&:strip).reject(&:empty?)
       end
     end
   end

@@ -26,10 +26,14 @@ module Git
 
           return empty_result("No dependencies found") unless current_commit
 
-          snapshots = current_commit.dependency_snapshots_dataset.eager(:manifest)
+          # Only look at lockfile dependencies (actual resolved versions, not constraints)
+          snapshots = current_commit.dependency_snapshots_dataset
+            .eager(:manifest)
+            .join(:manifests, id: :manifest_id)
+            .where(Sequel[:manifests][:kind] => "lockfile")
 
           if @options[:ecosystem]
-            snapshots = snapshots.where(ecosystem: @options[:ecosystem])
+            snapshots = snapshots.where(Sequel[:dependency_snapshots][:ecosystem] => @options[:ecosystem])
           end
 
           snapshots = snapshots.all

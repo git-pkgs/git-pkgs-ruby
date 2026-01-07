@@ -34,6 +34,9 @@ module Git
         "Analysis" => {
           "stats" => "Show dependency statistics",
           "stale" => "Show dependencies that haven't been updated"
+        },
+        "Security" => {
+          "vulns" => "Scan for known vulnerabilities"
         }
       }.freeze
 
@@ -99,13 +102,20 @@ module Git
         command = ALIASES.fetch(command, command)
         # Convert kebab-case or snake_case to PascalCase
         class_name = command.split(/[-_]/).map(&:capitalize).join
-        command_class = Commands.const_get(class_name)
+
+        # Try with Command suffix first (e.g., VulnsCommand), then bare name
+        command_class = begin
+          Commands.const_get("#{class_name}Command")
+        rescue NameError
+          begin
+            Commands.const_get(class_name)
+          rescue NameError
+            $stderr.puts "Command '#{command}' not yet implemented"
+            exit 1
+          end
+        end
+
         command_class.new(@args).run
-      rescue NameError => e
-        # Only catch NameError for missing command class, not NoMethodError
-        raise unless e.is_a?(NameError) && !e.is_a?(NoMethodError)
-        $stderr.puts "Command '#{command}' not yet implemented"
-        exit 1
       end
 
       def print_help

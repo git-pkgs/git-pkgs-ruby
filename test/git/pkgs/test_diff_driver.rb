@@ -134,67 +134,63 @@ class Git::Pkgs::TestDiffDriverInstall < Minitest::Test
   end
 
   def test_install_creates_gitattributes_for_lockfiles
-    Dir.chdir(@test_dir) do
+    with_pkgs_dir do
       capture_stdout do
-        driver = Git::Pkgs::Commands::DiffDriver.new(["--install"])
-        driver.run
+        Git::Pkgs::Commands::DiffDriver.new(["--install"]).run
       end
-
-      assert File.exist?(".gitattributes")
-      content = File.read(".gitattributes")
-      assert_includes content, "Gemfile.lock diff=pkgs"
-      assert_includes content, "package-lock.json diff=pkgs"
-      assert_includes content, "yarn.lock diff=pkgs"
-      # Should NOT include manifests
-      refute_includes content, "Gemfile diff=pkgs"
-      refute_includes content, "package.json diff=pkgs"
     end
+
+    gitattributes = File.join(@test_dir, ".gitattributes")
+    assert File.exist?(gitattributes)
+    content = File.read(gitattributes)
+    assert_includes content, "Gemfile.lock diff=pkgs"
+    assert_includes content, "package-lock.json diff=pkgs"
+    assert_includes content, "yarn.lock diff=pkgs"
+    # Should NOT include manifests
+    refute_includes content, "Gemfile diff=pkgs"
+    refute_includes content, "package.json diff=pkgs"
   end
 
   def test_install_sets_textconv_config
-    Dir.chdir(@test_dir) do
+    with_pkgs_dir do
       capture_stdout do
-        driver = Git::Pkgs::Commands::DiffDriver.new(["--install"])
-        driver.run
+        Git::Pkgs::Commands::DiffDriver.new(["--install"]).run
       end
-
-      config = `git config --get diff.pkgs.textconv`.chomp
-      assert_equal "git-pkgs diff-driver", config
     end
+
+    config = `git -C #{@test_dir} config --get diff.pkgs.textconv`.chomp
+    assert_equal "git-pkgs diff-driver", config
   end
 
   def test_uninstall_removes_config
-    Dir.chdir(@test_dir) do
-      # First install
-      capture_stdout do
-        Git::Pkgs::Commands::DiffDriver.new(["--install"]).run
-      end
-
-      # Then uninstall
-      capture_stdout do
-        Git::Pkgs::Commands::DiffDriver.new(["--uninstall"]).run
-      end
-
-      config = `git config --get diff.pkgs.textconv 2>&1`.chomp
-      refute_equal "git-pkgs diff-driver", config
+    with_pkgs_dir do
+      capture_stdout { Git::Pkgs::Commands::DiffDriver.new(["--install"]).run }
+      capture_stdout { Git::Pkgs::Commands::DiffDriver.new(["--uninstall"]).run }
     end
+
+    config = `git -C #{@test_dir} config --get diff.pkgs.textconv 2>&1`.chomp
+    refute_equal "git-pkgs diff-driver", config
   end
 
   def test_uninstall_cleans_gitattributes
-    Dir.chdir(@test_dir) do
-      # First install
-      capture_stdout do
-        Git::Pkgs::Commands::DiffDriver.new(["--install"]).run
-      end
-
-      # Then uninstall
-      capture_stdout do
-        Git::Pkgs::Commands::DiffDriver.new(["--uninstall"]).run
-      end
-
-      content = File.read(".gitattributes")
-      refute_includes content, "diff=pkgs"
+    with_pkgs_dir do
+      capture_stdout { Git::Pkgs::Commands::DiffDriver.new(["--install"]).run }
+      capture_stdout { Git::Pkgs::Commands::DiffDriver.new(["--uninstall"]).run }
     end
+
+    content = File.read(File.join(@test_dir, ".gitattributes"))
+    refute_includes content, "diff=pkgs"
+  end
+
+  def with_pkgs_dir
+    old_git_dir = Git::Pkgs.git_dir
+    old_work_tree = Git::Pkgs.work_tree
+    Git::Pkgs.git_dir = File.join(@test_dir, ".git")
+    Git::Pkgs.work_tree = @test_dir
+    yield
+  ensure
+    Git::Pkgs.git_dir = old_git_dir
+    Git::Pkgs.work_tree = old_work_tree
   end
 
   def capture_stdout
