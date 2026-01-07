@@ -5,7 +5,10 @@ class GitPkgs < Formula
   sha256 "ccd7a8a5b9cb21c52cc488923ed1318387a9fefa4baff2057bd96b27591577aa"
   license "AGPL-3.0"
 
-  depends_on "ruby@4"
+  depends_on "cmake" => :build
+  depends_on "pkg-config" => :build
+  depends_on "libgit2"
+  depends_on "ruby"
 
   def install
     ENV["GEM_HOME"] = libexec
