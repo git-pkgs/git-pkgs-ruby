@@ -30,7 +30,7 @@ module Git
         cog.yaml versions.json MLmodel DESCRIPTION renv.lock
         pubspec.yaml pubspec.lock
         dub.json dub.sdl
-        REQUIRE
+        REQUIRE Project.toml Manifest.toml
         shard.yml shard.lock
         elm-package.json elm_dependencies.json elm-stuff/exact-dependencies.json
         haxelib.json
@@ -43,11 +43,11 @@ module Git
         conanfile.py conanfile.txt conan.lock
         *.rockspec
         *.nimble
-        *.cabal *cabal.config stack.yaml.lock
+        *.cabal *cabal.config stack.yaml.lock cabal.project.freeze
         Cartfile Cartfile.private Cartfile.resolved
         project.clj
         Package.swift Package.resolved
-        mix.exs mix.lock
+        mix.exs mix.lock gleam.toml manifest.toml rebar.lock
         flake.nix flake.lock nix/sources.json npins/sources.json
       ].freeze
 
