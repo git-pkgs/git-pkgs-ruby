@@ -148,34 +148,12 @@ module Git
             error "Failed to query OSV API: #{e.message}"
           end
 
-          # Collect all unique vuln IDs and fetch full details
-          vuln_ids = results.flatten.map { |v| v["id"] }.uniq
-          vuln_ids.each do |vuln_id|
-            next if Models::Vulnerability.first(id: vuln_id)&.vulnerability_packages&.any?
+          fetch_vulnerability_details(client, results)
 
-            begin
-              full_vuln = client.get_vulnerability(vuln_id)
-              Models::Vulnerability.from_osv(full_vuln)
-            rescue OsvClient::ApiError => e
-              $stderr.puts "Warning: Failed to fetch vulnerability #{vuln_id}: #{e.message}" unless Git::Pkgs.quiet
-            end
-          end
-
-          # Update package sync timestamps
           packages.each do |pkg|
             bib_ecosystem = Ecosystems.from_osv(pkg[:ecosystem])
             purl = Ecosystems.generate_purl(bib_ecosystem, pkg[:name])
-
-            if purl
-              Models::Package.update_or_create(
-                { purl: purl },
-                {
-                  ecosystem: bib_ecosystem,
-                  name: pkg[:name],
-                  vulns_synced_at: Time.now
-                }
-              )
-            end
+            mark_package_synced(purl, bib_ecosystem, pkg[:name]) if purl
           end
         end
 
@@ -207,31 +185,34 @@ module Git
             end.compact
 
             results = client.query_batch(queries)
+            fetch_vulnerability_details(client, results)
 
-            # Collect all unique vuln IDs and fetch full details
-            vuln_ids = results.flatten.map { |v| v["id"] }.uniq
-            vuln_ids.each do |vuln_id|
-              next if Models::Vulnerability.first(id: vuln_id)&.vulnerability_packages&.any?
-
-              begin
-                full_vuln = client.get_vulnerability(vuln_id)
-                Models::Vulnerability.from_osv(full_vuln)
-              rescue OsvClient::ApiError => e
-                $stderr.puts "Warning: Failed to fetch vulnerability #{vuln_id}: #{e.message}" unless Git::Pkgs.quiet
-              end
-            end
-
-            # Update package sync timestamps
             batch.each do |pkg|
               purl = Ecosystems.generate_purl(pkg.ecosystem, pkg.name)
-              next unless purl
-
-              Models::Package.update_or_create(
-                { purl: purl },
-                { ecosystem: pkg.ecosystem, name: pkg.name, vulns_synced_at: Time.now }
-              )
+              mark_package_synced(purl, pkg.ecosystem, pkg.name) if purl
             end
           end
+        end
+
+        def fetch_vulnerability_details(client, results)
+          vuln_ids = results.flatten.map { |v| v["id"] }.uniq
+          vuln_ids.each do |vuln_id|
+            next if Models::Vulnerability.first(id: vuln_id)&.vulnerability_packages&.any?
+
+            begin
+              full_vuln = client.get_vulnerability(vuln_id)
+              Models::Vulnerability.from_osv(full_vuln)
+            rescue OsvClient::ApiError => e
+              $stderr.puts "Warning: Failed to fetch vulnerability #{vuln_id}: #{e.message}" unless Git::Pkgs.quiet
+            end
+          end
+        end
+
+        def mark_package_synced(purl, ecosystem, name)
+          Models::Package.update_or_create(
+            { purl: purl },
+            { ecosystem: ecosystem, name: name, vulns_synced_at: Time.now }
+          )
         end
 
         def format_commit_info(commit)

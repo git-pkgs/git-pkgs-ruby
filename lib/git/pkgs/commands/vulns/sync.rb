@@ -40,7 +40,7 @@ module Git
           repo = Repository.new
 
           unless Database.exists?(repo.git_dir)
-            error "No database found. Run 'git pkgs init' first or use --stateless."
+            error "No database found. Run 'git pkgs init' first."
           end
 
           Database.connect(repo.git_dir)

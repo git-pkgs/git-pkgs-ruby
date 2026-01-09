@@ -129,16 +129,19 @@ module Git
         end
       end
 
-      # Handle pagination for single query endpoint
+      MAX_PAGES = 100
+
       def fetch_all_pages(response, original_payload)
         vulns = response["vulns"] || []
         page_token = response["next_page_token"]
+        pages_fetched = 0
 
-        while page_token
+        while page_token && pages_fetched < MAX_PAGES
           payload = original_payload.merge(page_token: page_token)
           response = post("/query", payload)
           vulns.concat(response["vulns"] || [])
           page_token = response["next_page_token"]
+          pages_fetched += 1
         end
 
         vulns

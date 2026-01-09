@@ -297,7 +297,7 @@ module Git
 
           post_disclosure_times = fixed.map { |d| d[:post_disclosure_days] }.compact
           mean_remediation = post_disclosure_times.empty? ? nil : (post_disclosure_times.sum.to_f / post_disclosure_times.size).round(1)
-          median_remediation = post_disclosure_times.empty? ? nil : post_disclosure_times.sort[post_disclosure_times.size / 2]
+          median_remediation = median(post_disclosure_times)
 
           oldest_ongoing = ongoing.map { |d| d[:post_disclosure_days] }.compact.max
 
@@ -398,6 +398,18 @@ module Git
 
           puts ""
           output_exposure_summary(data)
+        end
+
+        def median(values)
+          return nil if values.empty?
+
+          sorted = values.sort
+          mid = sorted.size / 2
+          if sorted.size.odd?
+            sorted[mid]
+          else
+            ((sorted[mid - 1] + sorted[mid]) / 2.0).round(1)
+          end
         end
         end
       end

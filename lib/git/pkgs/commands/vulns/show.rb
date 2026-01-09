@@ -166,7 +166,7 @@ module Git
           begin
             commit_sha = repo.rev_parse(ref)
             target_commit = Models::Commit.first(sha: commit_sha)
-          rescue StandardError
+          rescue Rugged::ReferenceError
             return exposures
           end
 

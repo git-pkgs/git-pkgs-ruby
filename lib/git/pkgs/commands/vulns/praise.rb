@@ -228,13 +228,7 @@ module Git
                         end
 
             line = "#{severity}  #{id}  #{pkg}  #{commit_info}  #{days_info}"
-            colored_line = case result[:severity]&.downcase
-                           when "critical", "high" then Color.green(line)
-                           when "medium" then Color.green(line)
-                           when "low" then Color.green(line)
-                           else Color.green(line)
-                           end
-            puts colored_line
+            puts Color.green(line)
           end
         end
         end
