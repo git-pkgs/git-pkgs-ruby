@@ -33,7 +33,9 @@ module Git
         },
         "Analysis" => {
           "stats" => "Show dependency statistics",
-          "stale" => "Show dependencies that haven't been updated"
+          "stale" => "Show dependencies that haven't been updated",
+          "outdated" => "Show packages with newer versions available",
+          "licenses" => "Show licenses for dependencies"
         },
         "Security" => {
           "vulns" => "Scan for known vulnerabilities"
@@ -42,7 +44,7 @@ module Git
 
       COMMANDS = COMMAND_GROUPS.values.flat_map(&:keys).freeze
       COMMAND_DESCRIPTIONS = COMMAND_GROUPS.values.reduce({}, :merge).freeze
-      ALIASES = { "praise" => "blame", "outdated" => "stale" }.freeze
+      ALIASES = { "praise" => "blame" }.freeze
 
       def self.run(args)
         new(args).run
