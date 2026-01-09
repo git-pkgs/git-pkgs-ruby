@@ -10,7 +10,7 @@ The executable at [`exe/git-pkgs`](../exe/git-pkgs) loads [`lib/git/pkgs.rb`](..
 
 [`Git::Pkgs::Database`](../lib/git/pkgs/database.rb) manages the SQLite connection using [Sequel](https://sequel.jeremyevans.net/) and [sqlite3](https://github.com/sparklemotion/sqlite3-ruby). It looks for the `GIT_PKGS_DB` environment variable first, then falls back to `.git/pkgs.sqlite3`. Schema migrations are versioned through a `schema_info` table. See [schema.md](schema.md) for the full schema.
 
-The schema has nine tables. Six handle dependency tracking:
+The schema has ten tables. Six handle dependency tracking:
 
 - `commits` holds commit metadata plus a flag indicating whether it changed dependencies
 - `branches` tracks which branches have been analyzed and their last processed SHA
@@ -19,9 +19,10 @@ The schema has nine tables. Six handle dependency tracking:
 - `dependency_changes` records every add, modify, or remove event
 - `dependency_snapshots` stores full dependency state at intervals
 
-Three more support vulnerability scanning:
+Four more support vulnerability scanning and package enrichment:
 
-- `packages` tracks which packages have been synced with OSV and when
+- `packages` tracks package metadata, vulnerability sync status, and enrichment data
+- `versions` stores per-version metadata (license, published date) for time-travel queries
 - `vulnerabilities` caches CVE/GHSA data fetched from OSV
 - `vulnerability_packages` maps which packages are affected by each vulnerability
 
@@ -187,6 +188,42 @@ When scanning, git-pkgs:
 5. Fetches full vulnerability details for any new CVEs found
 6. Matches version ranges against actual versions
 7. Excludes withdrawn vulnerabilities
+
+## Package Enrichment
+
+The [`outdated`](../lib/git/pkgs/commands/outdated.rb) and [`licenses`](../lib/git/pkgs/commands/licenses.rb) commands fetch package metadata from the [ecosyste.ms Packages API](https://packages.ecosyste.ms/).
+
+### Ecosystems Client
+
+[`Git::Pkgs::EcosystemsClient`](../lib/git/pkgs/ecosystems_client.rb) wraps the ecosyste.ms REST API. It uses batch lookups (`POST /api/v1/packages/lookup`) to check up to 100 packages per request. The response includes latest version, license, description, and repository URL for each package.
+
+### Enrichment Caching
+
+Like vulnerability data, enrichment data is cached in the database. The `packages` table has an `enriched_at` timestamp. Packages are refreshed if their data is more than 24 hours old. The `Package#needs_enrichment?` method checks this threshold.
+
+When running `outdated` or `licenses`:
+
+1. Get dependencies at the target commit
+2. Find or create package records for each purl
+3. Check which packages need enrichment (never enriched or stale)
+4. Batch query ecosyste.ms for those packages
+5. Store the enrichment data via `Package#enrich_from_api`
+6. Use the cached data for version comparison or license checking
+
+### Version Comparison
+
+The `outdated` command classifies updates as major, minor, or patch by comparing semver components. It handles the `v` prefix common in some ecosystems and pads partial versions (e.g., "1.2" becomes "1.2.0"). Updates are color-coded: red for major, yellow for minor, cyan for patch.
+
+### License Compliance
+
+The `licenses` command checks licenses against configured policies:
+
+- `--permissive` only allows common permissive licenses (MIT, Apache-2.0, BSD variants)
+- `--copyleft` flags GPL, AGPL, and similar licenses
+- `--allow` and `--deny` let you specify explicit lists
+- `--unknown` flags packages with no license information
+
+The command exits with code 1 when violations are found, making it suitable for CI pipelines.
 
 ## Models
 

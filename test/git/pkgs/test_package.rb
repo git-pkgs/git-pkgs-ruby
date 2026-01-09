@@ -184,4 +184,91 @@ class Git::Pkgs::TestPackage < Minitest::Test
     assert_equal 1, gem_pkgs.count
     assert_equal "rails", gem_pkgs.first.name
   end
+
+  def test_needs_enrichment_when_never_enriched
+    pkg = Git::Pkgs::Models::Package.create(
+      purl: "pkg:npm/lodash",
+      ecosystem: "npm",
+      name: "lodash",
+      enriched_at: nil
+    )
+
+    assert pkg.needs_enrichment?
+  end
+
+  def test_needs_enrichment_when_stale
+    pkg = Git::Pkgs::Models::Package.create(
+      purl: "pkg:npm/lodash",
+      ecosystem: "npm",
+      name: "lodash",
+      enriched_at: Time.now - 100_000
+    )
+
+    assert pkg.needs_enrichment?
+  end
+
+  def test_needs_enrichment_when_fresh
+    pkg = Git::Pkgs::Models::Package.create(
+      purl: "pkg:npm/lodash",
+      ecosystem: "npm",
+      name: "lodash",
+      enriched_at: Time.now
+    )
+
+    refute pkg.needs_enrichment?
+  end
+
+  def test_enrich_from_api
+    pkg = Git::Pkgs::Models::Package.create(
+      purl: "pkg:npm/lodash",
+      ecosystem: "npm",
+      name: "lodash"
+    )
+
+    api_data = {
+      "latest_release_number" => "4.17.21",
+      "normalized_licenses" => ["MIT"],
+      "description" => "Lodash modular utilities",
+      "homepage" => "https://lodash.com/",
+      "repository_url" => "https://github.com/lodash/lodash"
+    }
+
+    pkg.enrich_from_api(api_data)
+    pkg.refresh
+
+    assert_equal "4.17.21", pkg.latest_version
+    assert_equal "MIT", pkg.license
+    assert_equal "Lodash modular utilities", pkg.description
+    assert_equal "https://lodash.com/", pkg.homepage
+    assert_equal "https://github.com/lodash/lodash", pkg.repository_url
+    refute_nil pkg.enriched_at
+  end
+
+  def test_needs_enrichment_scope
+    Git::Pkgs::Models::Package.create(
+      purl: "pkg:npm/stale",
+      ecosystem: "npm",
+      name: "stale",
+      enriched_at: Time.now - 100_000
+    )
+
+    Git::Pkgs::Models::Package.create(
+      purl: "pkg:npm/fresh",
+      ecosystem: "npm",
+      name: "fresh",
+      enriched_at: Time.now
+    )
+
+    Git::Pkgs::Models::Package.create(
+      purl: "pkg:npm/never",
+      ecosystem: "npm",
+      name: "never",
+      enriched_at: nil
+    )
+
+    needs_enrichment = Git::Pkgs::Models::Package.needs_enrichment
+    assert_equal 2, needs_enrichment.count
+    purls = needs_enrichment.map(&:purl).sort
+    assert_equal ["pkg:npm/never", "pkg:npm/stale"], purls
+  end
 end
