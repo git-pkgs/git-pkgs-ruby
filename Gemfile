@@ -5,8 +5,8 @@ source "https://rubygems.org"
 gemspec
 
 group :development do
-  gem "ecosystems-bibliothecary", git: "https://github.com/ecosyste-ms/bibliothecary.git", require: "bibliothecary"
-  # gem "ecosystems-bibliothecary", path: "/Users/andrew/code/ecosystems/bibliothecary", require: "bibliothecary"
+  # gem "ecosystems-bibliothecary", git: "https://github.com/ecosyste-ms/bibliothecary.git", require: "bibliothecary"
+  # gem "ecosystems-bibliothecary", path: "../ecosystems/bibliothecary", require: "bibliothecary"
   gem "ostruct"
 
   gem "irb"

@@ -1,20 +1,8 @@
-GIT
-  remote: https://github.com/ecosyste-ms/bibliothecary.git
-  revision: 0aaf43834608c4ed4ecf1f7900d19d8e945b9d14
-  specs:
-    ecosystems-bibliothecary (15.1.1)
-      bundler
-      csv
-      json (~> 2.8)
-      ox (>= 2.8.1)
-      racc
-      tomlrb (~> 2.0)
-
 PATH
   remote: .
   specs:
     git-pkgs (0.6.2)
-      ecosystems-bibliothecary (~> 15.1)
+      ecosystems-bibliothecary (~> 15.2)
       rugged (~> 1.0)
       sequel (>= 5.0)
       sqlite3 (>= 2.0)
@@ -27,6 +15,13 @@ GEM
     csv (3.3.5)
     date (3.5.1)
     docile (1.4.1)
+    ecosystems-bibliothecary (15.2.0)
+      bundler
+      csv
+      json (~> 2.8)
+      ox (>= 2.8.1)
+      racc
+      tomlrb (~> 2.0)
     erb (6.0.1)
     io-console (0.8.2)
     irb (1.16.0)
@@ -91,7 +86,6 @@ PLATFORMS
 
 DEPENDENCIES
   benchmark
-  ecosystems-bibliothecary!
   git-pkgs!
   irb
   minitest
@@ -105,7 +99,7 @@ CHECKSUMS
   csv (3.3.5) sha256=6e5134ac3383ef728b7f02725d9872934f523cb40b961479f69cf3afa6c8e73f
   date (3.5.1) sha256=750d06384d7b9c15d562c76291407d89e368dda4d4fff957eb94962d325a0dc0
   docile (1.4.1) sha256=96159be799bfa73cdb721b840e9802126e4e03dfc26863db73647204c727f21e
-  ecosystems-bibliothecary (15.1.1)
+  ecosystems-bibliothecary (15.2.0) sha256=bef81a0175f8bdf1d61938d5d5d32e226ec4ff44a54d5d5d34faea663ed67a24
   erb (6.0.1) sha256=28ecdd99c5472aebd5674d6061e3c6b0a45c049578b071e5a52c2a7f13c197e5
   git-pkgs (0.6.2)
   io-console (0.8.2) sha256=d6e3ae7a7cc7574f4b8893b4fca2162e57a825b223a177b7afa236c5ef9814cc
