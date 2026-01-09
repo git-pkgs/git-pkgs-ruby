@@ -8,9 +8,9 @@ The executable at [`exe/git-pkgs`](../exe/git-pkgs) loads [`lib/git/pkgs.rb`](..
 
 ## Database
 
-[`Git::Pkgs::Database`](../lib/git/pkgs/database.rb) manages the SQLite connection using [ActiveRecord](https://github.com/rails/rails/tree/main/activerecord) and [sqlite3](https://github.com/sparklemotion/sqlite3-ruby). It looks for the `GIT_PKGS_DB` environment variable first, then falls back to `.git/pkgs.sqlite3`. Schema migrations are versioned through a `schema_info` table. See [schema.md](schema.md) for the full schema.
+[`Git::Pkgs::Database`](../lib/git/pkgs/database.rb) manages the SQLite connection using [Sequel](https://sequel.jeremyevans.net/) and [sqlite3](https://github.com/sparklemotion/sqlite3-ruby). It looks for the `GIT_PKGS_DB` environment variable first, then falls back to `.git/pkgs.sqlite3`. Schema migrations are versioned through a `schema_info` table. See [schema.md](schema.md) for the full schema.
 
-The schema has six main tables:
+The schema has nine tables. Six handle dependency tracking:
 
 - `commits` holds commit metadata plus a flag indicating whether it changed dependencies
 - `branches` tracks which branches have been analyzed and their last processed SHA
@@ -18,6 +18,12 @@ The schema has six main tables:
 - `manifests` stores file paths with their ecosystem (npm, rubygems, etc.) and kind (manifest vs lockfile)
 - `dependency_changes` records every add, modify, or remove event
 - `dependency_snapshots` stores full dependency state at intervals
+
+Three more support vulnerability scanning:
+
+- `packages` tracks which packages have been synced with OSV and when
+- `vulnerabilities` caches CVE/GHSA data fetched from OSV
+- `vulnerability_packages` maps which packages are affected by each vulnerability
 
 Snapshots exist because replaying thousands of change records to answer "what dependencies existed at commit X?" would be slow. Instead, we store the complete dependency set every 50 commits by default. Point-in-time queries find the nearest snapshot and replay only the changes since then.
 
@@ -131,9 +137,60 @@ This hybrid approach means `where` shows current file contents rather than histo
 
 Create a new file in [`lib/git/pkgs/commands/`](../lib/git/pkgs/commands/). Define `self.description` for help text and `self.run(args)` as the entry point. The CLI finds commands by constantizing the argument.
 
+## Vulnerability Scanning
+
+The [`vulns` command](../lib/git/pkgs/commands/vulns.rb) checks dependencies against the [OSV database](https://osv.dev). Three additional tables support this:
+
+- `packages` tracks which packages have been checked and when
+- `vulnerabilities` caches CVE/GHSA metadata (severity, summary, dates)
+- `vulnerability_packages` maps which packages are affected by each vulnerability
+
+### OSV Client
+
+[`Git::Pkgs::OsvClient`](../lib/git/pkgs/osv_client.rb) wraps the OSV REST API. It uses batch queries (`/querybatch`) to check up to 1000 packages per request, then fetches full details for each vulnerability found (`/vulns/{id}`). HTTP connections are reused across requests.
+
+### Ecosystem Mapping
+
+OSV uses different ecosystem names than bibliothecary. [`Git::Pkgs::Ecosystems`](../lib/git/pkgs/ecosystems.rb) translates between them:
+
+| bibliothecary | OSV | purl |
+|---------------|-----|------|
+| rubygems | RubyGems | gem |
+| npm | npm | npm |
+| pypi | PyPI | pypi |
+| cargo | crates.io | cargo |
+| go | Go | golang |
+| maven | Maven | maven |
+| nuget | NuGet | nuget |
+| packagist | Packagist | composer |
+| hex | Hex | hex |
+| pub | Pub | pub |
+
+Only these ecosystems support vulnerability scanning. Others (Docker, Actions, etc.) are tracked for dependency history but have no OSV coverage.
+
+### Version Matching
+
+[`VulnerabilityPackage#affects_version?`](../lib/git/pkgs/models/vulnerability_package.rb) uses the [vers](https://github.com/package-url/vers) gem to check if a version falls within an affected range. OSV returns ranges like `>=1.0.0 <2.0.0` or `<4.17.21`. The vers gem handles semver comparison across different ecosystems.
+
+Version ranges can have multiple OR conditions separated by `||`. Each condition is checked independently: `<1.0 || >=2.0 <3.0` means "affected if below 1.0 OR between 2.0 and 3.0".
+
+### Caching
+
+Vulnerability data is cached in the database to avoid repeated API calls. Each package in the `packages` table has a `vulns_synced_at` timestamp. Packages are refreshed if their data is more than 24 hours old. The `vulns sync --refresh` command forces a full refresh.
+
+When scanning, git-pkgs:
+
+1. Gets dependencies at the target commit (from snapshots or by parsing manifests)
+2. Filters to ecosystems with OSV support
+3. Checks which packages need syncing (never synced or stale)
+4. Batch queries OSV for those packages
+5. Fetches full vulnerability details for any new CVEs found
+6. Matches version ranges against actual versions
+7. Excludes withdrawn vulnerabilities
+
 ## Models
 
-ActiveRecord models live in [`lib/git/pkgs/models/`](../lib/git/pkgs/models/). They're straightforward except for a few convenience methods:
+Sequel models live in [`lib/git/pkgs/models/`](../lib/git/pkgs/models/). They're straightforward except for a few convenience methods:
 
 - `Commit.find_or_create_from_repo(repository, sha)` handles partial SHA resolution
 - `Manifest.find_or_create(path, ecosystem, kind)` uses a cache to avoid repeated lookups during init
