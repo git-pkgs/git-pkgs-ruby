@@ -1,8 +1,8 @@
 class GitPkgs < Formula
   desc "Track package dependencies across git history"
   homepage "https://github.com/andrew/git-pkgs"
-  url "https://github.com/andrew/git-pkgs/archive/refs/tags/v0.6.2.tar.gz"
-  sha256 "ccd7a8a5b9cb21c52cc488923ed1318387a9fefa4baff2057bd96b27591577aa"
+  url "https://github.com/andrew/git-pkgs/archive/refs/tags/v0.7.0.tar.gz"
+  sha256 "5c5aebf75e9570945b324777e5fa33cd5e35d31f6172c2415a4bd91db02477cc"
   license "AGPL-3.0"
 
   depends_on "cmake" => :build
