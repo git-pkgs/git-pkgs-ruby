@@ -39,11 +39,21 @@ module Git
             return
           end
 
+          locked_versions = build_locked_versions(deps)
+
           if @options[:format] == "json"
             require "json"
-            puts JSON.pretty_generate(deps)
+            deps_with_locked = deps.map do |dep|
+              if dep[:kind] == "manifest"
+                locked = locked_versions[[dep[:ecosystem], dep[:name]]]
+                locked ? dep.merge(locked_version: locked) : dep
+              else
+                dep
+              end
+            end
+            puts JSON.pretty_generate(deps_with_locked)
           else
-            paginate { output_text(deps) }
+            paginate { output_text(deps, locked_versions) }
           end
         end
 
@@ -68,14 +78,25 @@ module Git
           compute_dependencies_at_commit(target_commit, repo)
         end
 
-        def output_text(deps)
+        def build_locked_versions(deps)
+          locked_versions = {}
+          deps.each do |d|
+            next unless d[:kind] == "lockfile"
+            locked_versions[[d[:ecosystem], d[:name]]] = d[:requirement]
+          end
+          locked_versions
+        end
+
+        def output_text(deps, locked_versions)
           grouped = deps.group_by { |d| [d[:manifest_path], d[:ecosystem]] }
 
           grouped.each do |(path, platform), manifest_deps|
             puts "#{path} (#{platform}):"
             manifest_deps.sort_by { |d| d[:name] }.each do |dep|
-              type_suffix = dep[:dependency_type] ? " [#{dep[:dependency_type]}]" : ""
-              puts "  #{dep[:name]} #{dep[:requirement]}#{type_suffix}"
+              type_suffix = dep[:dependency_type] && dep[:dependency_type] != "runtime" ? " [#{dep[:dependency_type]}]" : ""
+              locked = locked_versions[[dep[:ecosystem], dep[:name]]] if dep[:kind] == "manifest"
+              locked_suffix = locked ? " [#{locked}]" : ""
+              puts "  #{dep[:name]} #{dep[:requirement]}#{locked_suffix}#{type_suffix}"
             end
             puts
           end
@@ -103,6 +124,7 @@ module Git
                 manifest_path: s.manifest.path,
                 name: s.name,
                 ecosystem: s.ecosystem,
+                kind: s.manifest.kind,
                 requirement: s.requirement,
                 dependency_type: s.dependency_type
               }
@@ -111,7 +133,7 @@ module Git
 
           # Replay changes from snapshot to target
           if snapshot_commit && snapshot_commit.id != target_commit.id
-            commit_ids = branch.commits_dataset.select_map(:id)
+            commit_ids = branch.commits_dataset.select_map(Sequel[:commits][:id])
             changes = Models::DependencyChange
               .join(:commits, id: :commit_id)
               .where(Sequel[:commits][:id] => commit_ids)
@@ -129,6 +151,7 @@ module Git
                   manifest_path: change.manifest.path,
                   name: change.name,
                   ecosystem: change.ecosystem,
+                  kind: change.manifest.kind,
                   requirement: change.requirement,
                   dependency_type: change.dependency_type
                 }

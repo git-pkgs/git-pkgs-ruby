@@ -313,6 +313,7 @@ module Git
               manifest_path: path,
               name: dep[:name],
               ecosystem: result[:platform],
+              kind: result[:kind],
               requirement: dep[:requirement],
               dependency_type: dep[:type]
             }
