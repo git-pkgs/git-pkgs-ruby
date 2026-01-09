@@ -23,6 +23,13 @@ Or with RubyGems:
 gem install git-pkgs
 ```
 
+Or using Docker:
+
+```bash
+docker build -t git-pkgs .
+docker run -it --rm -v $(pwd):/mnt git-pkgs <subcommand>
+```
+
 ## Quick start
 
 ```bash
