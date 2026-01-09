@@ -33,6 +33,10 @@ module Git
               options[:severity] = v
             end
 
+            opts.on("-r", "--ref=REF", "Git ref to analyze (default: HEAD)") do |v|
+              options[:ref] = v
+            end
+
             opts.on("-b", "--branch=NAME", "Branch context for finding commits") do |v|
               options[:branch] = v
             end
@@ -52,7 +56,7 @@ module Git
           end
 
           parser.parse!(@args)
-          options[:ref] = @args.shift unless @args.empty?
+          options[:ref] ||= @args.shift unless @args.empty?
           options
         end
 
@@ -176,37 +180,13 @@ module Git
         end
 
         def find_historical_introducing_commit(ecosystem, package_name, vuln_pkg)
-          changes = Models::DependencyChange
-            .join(:commits, id: :commit_id)
-            .where(ecosystem: ecosystem, name: package_name)
-            .where(change_type: %w[added modified])
-            .order(Sequel[:commits][:committed_at])
-            .eager(:commit)
-            .all
-
-          introducing_change = changes.find { |c| vuln_pkg.affects_version?(c.requirement) }
-          return nil unless introducing_change
-
-          introduced_at = introducing_change.commit.committed_at
-
-          # Check if it was fixed
-          fix_changes = Models::DependencyChange
-            .join(:commits, id: :commit_id)
-            .where(ecosystem: ecosystem, name: package_name)
-            .where(change_type: %w[modified removed])
-            .where { Sequel[:commits][:committed_at] > introduced_at }
-            .order(Sequel[:commits][:committed_at])
-            .eager(:commit)
-            .all
-
-          fixing_change = fix_changes.find do |c|
-            c.change_type == "removed" || !vuln_pkg.affects_version?(c.requirement)
-          end
+          window = find_vulnerability_window(ecosystem, package_name, vuln_pkg)
+          return nil unless window
 
           {
-            commit_info: format_commit_info(introducing_change.commit),
-            version: introducing_change.requirement,
-            status: fixing_change ? "fixed" : "ongoing"
+            commit_info: format_commit_info(window[:introducing].commit),
+            version: window[:introducing].requirement,
+            status: window[:status]
           }
         end
 

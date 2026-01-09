@@ -29,7 +29,11 @@ module Git
               options[:format] = v
             end
 
-            opts.on("-b", "--branch=NAME", "Branch context for exposure analysis") do |v|
+            opts.on("-r", "--ref=REF", "Git ref for exposure analysis (default: HEAD)") do |v|
+              options[:ref] = v
+            end
+
+            opts.on("-b", "--branch=NAME", "Branch context for finding snapshots") do |v|
               options[:branch] = v
             end
 
@@ -122,7 +126,7 @@ module Git
             puts "References:"
             refs = begin
               JSON.parse(vuln.references)
-            rescue StandardError
+            rescue JSON::ParserError
               []
             end
             refs.each do |ref|

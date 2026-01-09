@@ -33,6 +33,10 @@ module Git
               options[:severity] = v
             end
 
+            opts.on("-r", "--ref=REF", "Git ref to analyze (default: HEAD)") do |v|
+              options[:ref] = v
+            end
+
             opts.on("-b", "--branch=NAME", "Branch context for finding commits") do |v|
               options[:branch] = v
             end
@@ -56,7 +60,7 @@ module Git
           end
 
           parser.parse!(@args)
-          options[:ref] = @args.shift unless @args.empty?
+          options[:ref] ||= @args.shift unless @args.empty?
           options
         end
 
@@ -165,34 +169,13 @@ module Git
         end
 
         def calculate_historical_exposure(ecosystem, package_name, vuln_pkg, last_commit)
-          # Find the first change that introduced an affected version
-          changes = Models::DependencyChange
-            .join(:commits, id: :commit_id)
-            .where(ecosystem: ecosystem, name: package_name)
-            .where(change_type: %w[added modified])
-            .order(Sequel[:commits][:committed_at])
-            .eager(:commit)
-            .all
+          window = find_vulnerability_window(ecosystem, package_name, vuln_pkg)
+          return nil unless window
 
-          introducing_change = changes.find { |c| vuln_pkg.affects_version?(c.requirement) }
-          return nil unless introducing_change
+          introducing_change = window[:introducing]
+          fixing_change = window[:fixing]
 
           introduced_at = introducing_change.commit.committed_at
-
-          # Find when it was fixed (upgraded to non-affected version or removed)
-          fix_changes = Models::DependencyChange
-            .join(:commits, id: :commit_id)
-            .where(ecosystem: ecosystem, name: package_name)
-            .where(change_type: %w[modified removed])
-            .where { Sequel[:commits][:committed_at] > introduced_at }
-            .order(Sequel[:commits][:committed_at])
-            .eager(:commit)
-            .all
-
-          fixing_change = fix_changes.find do |c|
-            c.change_type == "removed" || !vuln_pkg.affects_version?(c.requirement)
-          end
-
           fixed_at = fixing_change&.commit&.committed_at
           published_at = vuln_pkg.vulnerability&.published_at
           now = Time.now
@@ -222,7 +205,7 @@ module Git
             introduced_by: format_commit_info(introducing_change.commit),
             fixed_at: fixed_at&.strftime("%Y-%m-%d"),
             fixed_by: fixing_change ? format_commit_info(fixing_change.commit) : nil,
-            status: fixed_at ? "fixed" : "ongoing",
+            status: window[:status],
             total_exposure_days: total_exposure_days,
             post_disclosure_days: post_disclosure_days
           }

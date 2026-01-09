@@ -604,7 +604,7 @@ class Git::Pkgs::TestVulnsHistory < Minitest::Test
       vulnerability_id: active_vuln.id,
       ecosystem: "npm",
       package_name: "lodash",
-      vulnerable_range: "< 4.17.21"
+      affected_versions: "< 4.17.21"
     )
 
     # Create a withdrawn vulnerability
@@ -620,7 +620,7 @@ class Git::Pkgs::TestVulnsHistory < Minitest::Test
       vulnerability_id: withdrawn_vuln.id,
       ecosystem: "npm",
       package_name: "lodash",
-      vulnerable_range: "< 4.17.21"
+      affected_versions: "< 4.17.21"
     )
 
     output = capture_stdout do
@@ -645,7 +645,7 @@ class Git::Pkgs::TestVulnsHistory < Minitest::Test
       vulnerability_id: withdrawn_vuln.id,
       ecosystem: "npm",
       package_name: "lodash",
-      vulnerable_range: "< 4.17.21"
+      affected_versions: "< 4.17.21"
     )
 
     output = capture_stdout do
@@ -677,7 +677,7 @@ class Git::Pkgs::TestVulnsHistory < Minitest::Test
       vulnerability_id: withdrawn_vuln.id,
       ecosystem: "npm",
       package_name: "lodash",
-      vulnerable_range: "< 4.17.21"
+      affected_versions: "< 4.17.21"
     )
 
     output = capture_stdout do

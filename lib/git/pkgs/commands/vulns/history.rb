@@ -275,12 +275,12 @@ module Git
         def filter_timeline_by_date(timeline)
           if @options[:since]
             since_time = parse_date(@options[:since])
-            timeline = timeline.select { |e| e[:date] >= since_time }
+            timeline = timeline.select { |e| e[:date] >= since_time } if since_time
           end
 
           if @options[:until]
             until_time = parse_date(@options[:until])
-            timeline = timeline.select { |e| e[:date] <= until_time }
+            timeline = timeline.select { |e| e[:date] <= until_time } if until_time
           end
 
           timeline

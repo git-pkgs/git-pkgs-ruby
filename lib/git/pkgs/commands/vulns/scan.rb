@@ -43,6 +43,10 @@ module Git
               options[:severity] = v
             end
 
+            opts.on("-r", "--ref=REF", "Git ref to scan (default: HEAD)") do |v|
+              options[:ref] = v
+            end
+
             opts.on("-b", "--branch=NAME", "Branch context for finding snapshots") do |v|
               options[:branch] = v
             end
@@ -66,7 +70,7 @@ module Git
           end
 
           parser.parse!(@args)
-          options[:ref] = @args.shift unless @args.empty?
+          options[:ref] ||= @args.shift unless @args.empty?
           options
         end
 
@@ -130,7 +134,7 @@ module Git
               short_description: Sarif::MultiformatMessageString.new(text: vuln[:summary] || vuln[:id]),
               help_uri: "https://osv.dev/vulnerability/#{vuln[:id]}",
               properties: {
-                security_severity: severity_score(vuln[:severity])
+                security_severity: severity_score(vuln[:cvss_score], vuln[:severity])
               }.compact
             )
           end.uniq(&:id)
@@ -186,7 +190,9 @@ module Git
           end
         end
 
-        def severity_score(severity)
+        def severity_score(cvss_score, severity)
+          return cvss_score.to_s if cvss_score
+
           case severity&.downcase
           when "critical" then "9.0"
           when "high" then "7.0"

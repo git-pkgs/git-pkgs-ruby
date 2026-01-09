@@ -184,35 +184,13 @@ module Git
         end
 
         def find_fixing_commit_info(ecosystem, package_name, vuln_pkg)
-          changes = Models::DependencyChange
-            .join(:commits, id: :commit_id)
-            .where(ecosystem: ecosystem, name: package_name)
-            .where(change_type: %w[added modified])
-            .order(Sequel[:commits][:committed_at])
-            .eager(:commit)
-            .all
+          window = find_vulnerability_window(ecosystem, package_name, vuln_pkg)
+          return nil unless window && window[:fixing]
 
-          introducing_change = changes.find { |c| vuln_pkg.affects_version?(c.requirement) }
-          return nil unless introducing_change
+          introducing_change = window[:introducing]
+          fixing_change = window[:fixing]
 
           introduced_at = introducing_change.commit.committed_at
-
-          # Find when it was fixed
-          fix_changes = Models::DependencyChange
-            .join(:commits, id: :commit_id)
-            .where(ecosystem: ecosystem, name: package_name)
-            .where(change_type: %w[modified removed])
-            .where { Sequel[:commits][:committed_at] > introduced_at }
-            .order(Sequel[:commits][:committed_at])
-            .eager(:commit)
-            .all
-
-          fixing_change = fix_changes.find do |c|
-            c.change_type == "removed" || !vuln_pkg.affects_version?(c.requirement)
-          end
-
-          return nil unless fixing_change
-
           fixed_at = fixing_change.commit.committed_at
           published_at = vuln_pkg.vulnerability&.published_at
 

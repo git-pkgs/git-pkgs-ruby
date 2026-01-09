@@ -116,6 +116,7 @@ module Git
               vulns << {
                 id: vp.vulnerability_id,
                 severity: vp.vulnerability&.severity,
+                cvss_score: vp.vulnerability&.cvss_score,
                 package_name: pkg[:name],
                 package_version: pkg[:version],
                 ecosystem: pkg[:original][:ecosystem],
@@ -155,8 +156,8 @@ module Git
             begin
               full_vuln = client.get_vulnerability(vuln_id)
               Models::Vulnerability.from_osv(full_vuln)
-            rescue OsvClient::ApiError
-              # Skip vulnerabilities we can't fetch
+            rescue OsvClient::ApiError => e
+              $stderr.puts "Warning: Failed to fetch vulnerability #{vuln_id}: #{e.message}" unless Git::Pkgs.quiet
             end
           end
 
@@ -215,8 +216,8 @@ module Git
               begin
                 full_vuln = client.get_vulnerability(vuln_id)
                 Models::Vulnerability.from_osv(full_vuln)
-              rescue OsvClient::ApiError
-                # Skip vulnerabilities we can't fetch
+              rescue OsvClient::ApiError => e
+                $stderr.puts "Warning: Failed to fetch vulnerability #{vuln_id}: #{e.message}" unless Git::Pkgs.quiet
               end
             end
 
@@ -282,6 +283,10 @@ module Git
             .eager(:commit)
             .all
 
+          find_first_fixing_change(changes, vuln_pkg)
+        end
+
+        def find_first_fixing_change(changes, vuln_pkg)
           changes.each do |change|
             if change.change_type == "removed"
               return change
@@ -289,8 +294,39 @@ module Git
               return change
             end
           end
-
           nil
+        end
+
+        def find_vulnerability_window(ecosystem, package_name, vuln_pkg)
+          introducing_changes = Models::DependencyChange
+            .join(:commits, id: :commit_id)
+            .where(ecosystem: ecosystem, name: package_name)
+            .where(change_type: %w[added modified])
+            .order(Sequel[:commits][:committed_at])
+            .eager(:commit)
+            .all
+
+          introducing_change = introducing_changes.find { |c| vuln_pkg.affects_version?(c.requirement) }
+          return nil unless introducing_change
+
+          introduced_at = introducing_change.commit.committed_at
+
+          fix_changes = Models::DependencyChange
+            .join(:commits, id: :commit_id)
+            .where(ecosystem: ecosystem, name: package_name)
+            .where(change_type: %w[modified removed])
+            .where { Sequel[:commits][:committed_at] > introduced_at }
+            .order(Sequel[:commits][:committed_at])
+            .eager(:commit)
+            .all
+
+          fixing_change = find_first_fixing_change(fix_changes, vuln_pkg)
+
+          {
+            introducing: introducing_change,
+            fixing: fixing_change,
+            status: fixing_change ? "fixed" : "ongoing"
+          }
         end
 
         def get_dependencies_stateless(repo)
