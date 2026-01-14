@@ -26,3 +26,10 @@ pylock.toml diff=pkgs
 shard.lock diff=pkgs
 uv.lock diff=pkgs
 yarn.lock diff=pkgs
+# git-pkgs textconv for lockfiles
+go.sum diff=pkgs
+gradle.lockfile diff=pkgs
+pdm.lock diff=pkgs
+renv.lock diff=pkgs
+stack.yaml.lock diff=pkgs
+verification-metadata.xml diff=pkgs
