@@ -33,7 +33,7 @@ module Git
         REQUIRE Project.toml Manifest.toml
         shard.yml shard.lock
         elm-package.json elm_dependencies.json elm-stuff/exact-dependencies.json
-        haxelib.json
+        haxelib.json stack.yaml stack.yaml.lock
         action.yml action.yaml .github/workflows/*.yml .github/workflows/*.yaml
         Dockerfile docker-compose*.yml docker-compose*.yaml
         dvc.yaml vcpkg.json _generated-vcpkg-list.json

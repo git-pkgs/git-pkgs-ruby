@@ -125,6 +125,25 @@ Tracks packages for vulnerability sync status.
 
 Indexes: `purl` (unique)
 
+### versions
+
+Stores per-version metadata for packages.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | integer | Primary key |
+| purl | string | Full versioned purl (e.g., "pkg:npm/lodash@4.17.21") |
+| package_purl | string | Parent package purl (e.g., "pkg:npm/lodash") |
+| license | string | License for this specific version |
+| published_at | datetime | When this version was published |
+| integrity | text | Integrity hash (e.g., SHA256) |
+| source | string | Data source |
+| enriched_at | datetime | When metadata was fetched |
+| created_at | datetime | |
+| updated_at | datetime | |
+
+Indexes: `purl` (unique), `package_purl`
+
 ### vulnerabilities
 
 Caches vulnerability data from OSV.
@@ -169,6 +188,8 @@ branches ──┬── branch_commits ──┬── commits
            │                    └── dependency_snapshots ── manifests
            │
            └── last_analyzed_sha (references commits.sha)
+
+packages ──── versions (via package_purl)
 
 vulnerabilities ──── vulnerability_packages
 ```

@@ -143,7 +143,9 @@ module Git
 
           client = OsvClient.new
           results = begin
-            client.query_batch(packages.map { |p| p.slice(:ecosystem, :name, :version) })
+            Spinner.with_spinner("Checking vulnerabilities...") do
+              client.query_batch(packages.map { |p| p.slice(:ecosystem, :name, :version) })
+            end
           rescue OsvClient::ApiError => e
             error "Failed to query OSV API: #{e.message}"
           end
@@ -176,20 +178,22 @@ module Git
           return if packages_to_sync.empty?
 
           client = OsvClient.new
-          packages_to_sync.each_slice(100) do |batch|
-            queries = batch.map do |pkg|
-              osv_ecosystem = Ecosystems.to_osv(pkg.ecosystem)
-              next unless osv_ecosystem
+          Spinner.with_spinner("Syncing vulnerability data...") do
+            packages_to_sync.each_slice(100) do |batch|
+              queries = batch.map do |pkg|
+                osv_ecosystem = Ecosystems.to_osv(pkg.ecosystem)
+                next unless osv_ecosystem
 
-              { ecosystem: osv_ecosystem, name: pkg.name }
-            end.compact
+                { ecosystem: osv_ecosystem, name: pkg.name }
+              end.compact
 
-            results = client.query_batch(queries)
-            fetch_vulnerability_details(client, results)
+              results = client.query_batch(queries)
+              fetch_vulnerability_details(client, results)
 
-            batch.each do |pkg|
-              purl = Ecosystems.generate_purl(pkg.ecosystem, pkg.name)
-              mark_package_synced(purl, pkg.ecosystem, pkg.name) if purl
+              batch.each do |pkg|
+                purl = Ecosystems.generate_purl(pkg.ecosystem, pkg.name)
+                mark_package_synced(purl, pkg.ecosystem, pkg.name) if purl
+              end
             end
           end
         end

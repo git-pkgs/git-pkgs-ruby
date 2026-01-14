@@ -24,18 +24,24 @@ module Git
           gems.locked
           glide.lock
           go.mod
+          go.sum
+          gradle.lockfile
           mix.lock
           npm-shrinkwrap.json
           package-lock.json
           packages.lock.json
           paket.lock
+          pdm.lock
           pnpm-lock.yaml
           poetry.lock
           project.assets.json
           pubspec.lock
           pylock.toml
+          renv.lock
           shard.lock
+          stack.yaml.lock
           uv.lock
+          verification-metadata.xml
           yarn.lock
         ].freeze
 

@@ -10,7 +10,10 @@ require_relative "pkgs/repository"
 require_relative "pkgs/analyzer"
 require_relative "pkgs/ecosystems"
 require_relative "pkgs/osv_client"
+require_relative "pkgs/ecosystems_client"
+require_relative "pkgs/spinner"
 
+require_relative "pkgs/purl_helper"
 require_relative "pkgs/models/branch"
 require_relative "pkgs/models/branch_commit"
 require_relative "pkgs/models/commit"
@@ -18,6 +21,7 @@ require_relative "pkgs/models/manifest"
 require_relative "pkgs/models/dependency_change"
 require_relative "pkgs/models/dependency_snapshot"
 require_relative "pkgs/models/package"
+require_relative "pkgs/models/version"
 require_relative "pkgs/models/vulnerability"
 require_relative "pkgs/models/vulnerability_package"
 
@@ -43,6 +47,8 @@ require_relative "pkgs/commands/schema"
 require_relative "pkgs/commands/diff_driver"
 require_relative "pkgs/commands/completions"
 require_relative "pkgs/commands/vulns"
+require_relative "pkgs/commands/outdated"
+require_relative "pkgs/commands/licenses"
 
 module Git
   module Pkgs

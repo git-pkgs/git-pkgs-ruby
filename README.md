@@ -524,6 +524,7 @@ Git::Pkgs::Database.connect(repo_git_dir)
 Git::Pkgs::Models::DependencyChange.where(name: "rails").all
 ```
 
+
 ## Contributing
 
 Bug reports, feature requests, and pull requests are welcome. If you're unsure about a change, open an issue first to discuss it.

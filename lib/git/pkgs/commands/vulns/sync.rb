@@ -66,36 +66,38 @@ module Git
           synced = 0
           vuln_count = 0
 
-          packages_to_sync.each_slice(100) do |batch|
-            queries = batch.map do |pkg|
-              osv_ecosystem = Ecosystems.to_osv(pkg.ecosystem)
-              next unless osv_ecosystem
+          Spinner.with_spinner("Fetching from OSV...") do
+            packages_to_sync.each_slice(100) do |batch|
+              queries = batch.map do |pkg|
+                osv_ecosystem = Ecosystems.to_osv(pkg.ecosystem)
+                next unless osv_ecosystem
 
-              { ecosystem: osv_ecosystem, name: pkg.name }
-            end.compact
+                { ecosystem: osv_ecosystem, name: pkg.name }
+              end.compact
 
-            results = client.query_batch(queries)
+              results = client.query_batch(queries)
 
-            # Collect all unique vuln IDs from this batch to fetch full details
-            vuln_ids = results.flatten.map { |v| v["id"] }.uniq
+              # Collect all unique vuln IDs from this batch to fetch full details
+              vuln_ids = results.flatten.map { |v| v["id"] }.uniq
 
-            # Fetch full vulnerability details and create records
-            vuln_ids.each do |vuln_id|
-              existing = Models::Vulnerability.first(id: vuln_id)
-              next if existing&.vulnerability_packages&.any? && !@options[:refresh]
+              # Fetch full vulnerability details and create records
+              vuln_ids.each do |vuln_id|
+                existing = Models::Vulnerability.first(id: vuln_id)
+                next if existing&.vulnerability_packages&.any? && !@options[:refresh]
 
-              begin
-                full_vuln = client.get_vulnerability(vuln_id)
-                Models::Vulnerability.from_osv(full_vuln)
-                vuln_count += 1
-              rescue OsvClient::ApiError
-                # Skip vulnerabilities we can't fetch
+                begin
+                  full_vuln = client.get_vulnerability(vuln_id)
+                  Models::Vulnerability.from_osv(full_vuln)
+                  vuln_count += 1
+                rescue OsvClient::ApiError
+                  # Skip vulnerabilities we can't fetch
+                end
               end
-            end
 
-            batch.each do |pkg|
-              pkg.mark_vulns_synced
-              synced += 1
+              batch.each do |pkg|
+                pkg.mark_vulns_synced
+                synced += 1
+              end
             end
           end
 
