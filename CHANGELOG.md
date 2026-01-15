@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- `--at` flag for `outdated` command to check what was outdated at a specific date or git ref
 - Auto-upgrade outdated database schemas instead of erroring
 - Fix `outdated` command suggesting downgrades when current version is newer than registry
 

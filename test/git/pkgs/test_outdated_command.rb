@@ -228,4 +228,118 @@ class Git::Pkgs::TestOutdatedCommand < Minitest::Test
 
     assert_match(/up to date/, output)
   end
+
+  def test_outdated_at_date
+    add_file("package-lock.json", <<~JSON)
+      {
+        "name": "test-project",
+        "lockfileVersion": 2,
+        "packages": {
+          "node_modules/lodash": {
+            "version": "4.17.15"
+          }
+        }
+      }
+    JSON
+    commit("Add package-lock.json")
+
+    # Stub the versions API to return version history
+    stub_request(:get, %r{packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/lodash/versions})
+      .to_return(
+        status: 200,
+        body: [
+          { "number" => "4.17.15", "published_at" => "2019-07-19T00:00:00Z" },
+          { "number" => "4.17.19", "published_at" => "2020-07-15T00:00:00Z" },
+          { "number" => "4.17.21", "published_at" => "2021-02-20T00:00:00Z" }
+        ].to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    output = Dir.chdir(@test_dir) do
+      capture_io do
+        Git::Pkgs::Commands::Outdated.new(["--stateless", "--at", "2020-08-01"]).run
+      end.first
+    end
+
+    # Should show 4.17.19 as latest (not 4.17.21 which came later)
+    assert_match(/lodash/, output)
+    assert_match(/4\.17\.15/, output)
+    assert_match(/4\.17\.19/, output)
+    refute_match(/4\.17\.21/, output)
+  end
+
+  def test_outdated_at_git_ref
+    add_file("package-lock.json", <<~JSON)
+      {
+        "name": "test-project",
+        "lockfileVersion": 2,
+        "packages": {
+          "node_modules/lodash": {
+            "version": "4.17.15"
+          }
+        }
+      }
+    JSON
+    commit("Add package-lock.json")
+
+    # Create a tag with a known date
+    Dir.chdir(@test_dir) do
+      system("git tag v1.0")
+    end
+
+    # The tag's commit date is "now", so we need versions that span around it
+    stub_request(:get, %r{packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/lodash/versions})
+      .to_return(
+        status: 200,
+        body: [
+          { "number" => "4.17.15", "published_at" => "2019-07-19T00:00:00Z" },
+          { "number" => "4.17.21", "published_at" => "2021-02-20T00:00:00Z" }
+        ].to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    output = Dir.chdir(@test_dir) do
+      capture_io do
+        Git::Pkgs::Commands::Outdated.new(["--stateless", "--at", "v1.0"]).run
+      end.first
+    end
+
+    # Both versions are before "now", so should show 4.17.21 as latest
+    assert_match(/lodash/, output)
+    assert_match(/4\.17\.21/, output)
+  end
+
+  def test_outdated_at_up_to_date_in_past
+    add_file("package-lock.json", <<~JSON)
+      {
+        "name": "test-project",
+        "lockfileVersion": 2,
+        "packages": {
+          "node_modules/lodash": {
+            "version": "4.17.15"
+          }
+        }
+      }
+    JSON
+    commit("Add package-lock.json")
+
+    stub_request(:get, %r{packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/lodash/versions})
+      .to_return(
+        status: 200,
+        body: [
+          { "number" => "4.17.15", "published_at" => "2019-07-19T00:00:00Z" },
+          { "number" => "4.17.21", "published_at" => "2021-02-20T00:00:00Z" }
+        ].to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    output = Dir.chdir(@test_dir) do
+      capture_io do
+        # At this date, 4.17.15 was the latest version
+        Git::Pkgs::Commands::Outdated.new(["--stateless", "--at", "2020-01-01"]).run
+      end.first
+    end
+
+    assert_match(/up to date/, output)
+  end
 end

@@ -259,4 +259,101 @@ class Git::Pkgs::TestModels < Minitest::Test
       Git::Pkgs::Models::Version.create(purl: "pkg:gem/rails@7.0.0", package_purl: "pkg:gem/rails")
     end
   end
+
+  def test_version_latest_as_of
+    Git::Pkgs::Models::Package.create(purl: "pkg:gem/rails", ecosystem: "rubygems", name: "rails")
+
+    Git::Pkgs::Models::Version.create(
+      purl: "pkg:gem/rails@6.1.0",
+      package_purl: "pkg:gem/rails",
+      published_at: Time.parse("2020-12-09")
+    )
+    Git::Pkgs::Models::Version.create(
+      purl: "pkg:gem/rails@7.0.0",
+      package_purl: "pkg:gem/rails",
+      published_at: Time.parse("2021-12-15")
+    )
+    Git::Pkgs::Models::Version.create(
+      purl: "pkg:gem/rails@7.1.0",
+      package_purl: "pkg:gem/rails",
+      published_at: Time.parse("2023-10-05")
+    )
+
+    # Before any releases
+    result = Git::Pkgs::Models::Version.latest_as_of(
+      package_purl: "pkg:gem/rails",
+      date: Time.parse("2020-01-01")
+    )
+    assert_nil result
+
+    # After 6.1.0 but before 7.0.0
+    result = Git::Pkgs::Models::Version.latest_as_of(
+      package_purl: "pkg:gem/rails",
+      date: Time.parse("2021-06-01")
+    )
+    assert_equal "6.1.0", result.version_string
+
+    # After 7.0.0 but before 7.1.0
+    result = Git::Pkgs::Models::Version.latest_as_of(
+      package_purl: "pkg:gem/rails",
+      date: Time.parse("2022-06-01")
+    )
+    assert_equal "7.0.0", result.version_string
+
+    # After all releases
+    result = Git::Pkgs::Models::Version.latest_as_of(
+      package_purl: "pkg:gem/rails",
+      date: Time.parse("2024-01-01")
+    )
+    assert_equal "7.1.0", result.version_string
+  end
+
+  def test_version_latest_as_of_ignores_versions_without_published_at
+    Git::Pkgs::Models::Package.create(purl: "pkg:gem/rails", ecosystem: "rubygems", name: "rails")
+
+    Git::Pkgs::Models::Version.create(
+      purl: "pkg:gem/rails@6.1.0",
+      package_purl: "pkg:gem/rails",
+      published_at: Time.parse("2020-12-09")
+    )
+    Git::Pkgs::Models::Version.create(
+      purl: "pkg:gem/rails@7.0.0",
+      package_purl: "pkg:gem/rails",
+      published_at: nil
+    )
+
+    result = Git::Pkgs::Models::Version.latest_as_of(
+      package_purl: "pkg:gem/rails",
+      date: Time.parse("2024-01-01")
+    )
+    assert_equal "6.1.0", result.version_string
+  end
+
+  def test_version_latest_as_of_compares_semantically
+    Git::Pkgs::Models::Package.create(purl: "pkg:npm/lodash", ecosystem: "npm", name: "lodash")
+
+    # Published out of semantic order
+    Git::Pkgs::Models::Version.create(
+      purl: "pkg:npm/lodash@4.17.21",
+      package_purl: "pkg:npm/lodash",
+      published_at: Time.parse("2021-02-20")
+    )
+    Git::Pkgs::Models::Version.create(
+      purl: "pkg:npm/lodash@4.17.19",
+      package_purl: "pkg:npm/lodash",
+      published_at: Time.parse("2020-07-15")
+    )
+    Git::Pkgs::Models::Version.create(
+      purl: "pkg:npm/lodash@4.17.15",
+      package_purl: "pkg:npm/lodash",
+      published_at: Time.parse("2019-07-19")
+    )
+
+    # Should return highest version, not most recent
+    result = Git::Pkgs::Models::Version.latest_as_of(
+      package_purl: "pkg:npm/lodash",
+      date: Time.parse("2022-01-01")
+    )
+    assert_equal "4.17.21", result.version_string
+  end
 end

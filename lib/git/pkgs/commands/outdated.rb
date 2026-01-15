@@ -17,6 +17,13 @@ module Git
           @options = parse_options
         end
 
+        def parse_date(value)
+          Time.parse(value)
+        rescue ArgumentError
+          # Not a date, will try as git ref in run()
+          value
+        end
+
         def parse_options
           options = {}
 
@@ -51,6 +58,10 @@ module Git
               options[:stateless] = true
             end
 
+            opts.on("--at=DATE", "Show what was outdated at DATE (YYYY-MM-DD)") do |v|
+              options[:at] = parse_date(v)
+            end
+
             opts.on("-h", "--help", "Show this help") do
               puts opts
               exit
@@ -72,6 +83,8 @@ module Git
             Database.connect(repo.git_dir)
             deps = get_dependencies_with_database(repo)
           end
+
+          resolve_at_option(repo) if @options[:at]
 
           if deps.empty?
             empty_result "No dependencies found"
@@ -102,14 +115,19 @@ module Git
             }
           end.uniq { |p| p[:purl] }
 
-          enrich_packages(packages_to_check.map { |p| p[:purl] })
+          purls = packages_to_check.map { |p| p[:purl] }
+
+          if @options[:at]
+            enrich_version_history(purls)
+          else
+            enrich_packages(purls)
+          end
 
           outdated = []
           packages_to_check.each do |pkg|
-            db_pkg = Models::Package.first(purl: pkg[:purl])
-            next unless db_pkg&.latest_version
+            latest = get_latest_version(pkg[:purl])
+            next unless latest
 
-            latest = db_pkg.latest_version
             current = pkg[:current_version]
 
             next if current == latest
@@ -139,6 +157,62 @@ module Git
           else
             output_text(outdated)
           end
+        end
+
+        def resolve_at_option(repo)
+          return if @options[:at].is_a?(Time)
+
+          ref = @options[:at].to_s
+          begin
+            sha = repo.rev_parse(ref)
+            commit = repo.lookup(sha)
+            @options[:at] = commit.time
+          rescue Rugged::ReferenceError, Rugged::InvalidError
+            $stderr.puts "Invalid git ref or date: #{ref}. Use YYYY-MM-DD or a valid git ref."
+            exit 1
+          end
+        end
+
+        def get_latest_version(purl)
+          if @options[:at]
+            version = Models::Version.latest_as_of(package_purl: purl, date: @options[:at])
+            version&.version_string
+          else
+            db_pkg = Models::Package.first(purl: purl)
+            db_pkg&.latest_version
+          end
+        end
+
+        def enrich_version_history(purls)
+          client = EcosystemsClient.new
+
+          Spinner.with_spinner("Fetching version history...") do
+            purls.each do |purl|
+              existing_count = Models::Version.where(package_purl: purl)
+                .where(Sequel.~(published_at: nil))
+                .count
+              next if existing_count > 0
+
+              versions = client.lookup_all_versions(purl)
+              next unless versions
+
+              versions.each do |v|
+                next unless v["number"] && v["published_at"]
+
+                version_purl = "#{purl}@#{v["number"]}"
+                version = Models::Version.find_or_create_by_purl(
+                  purl: version_purl,
+                  package_purl: purl
+                )
+                version.update(
+                  published_at: Time.parse(v["published_at"]),
+                  enriched_at: Time.now
+                )
+              end
+            end
+          end
+        rescue EcosystemsClient::ApiError => e
+          $stderr.puts "Warning: Could not fetch version history: #{e.message}" unless Git::Pkgs.quiet
         end
 
         def enrich_packages(purls)

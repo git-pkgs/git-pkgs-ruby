@@ -268,10 +268,14 @@ Shows dependencies sorted by how long since they were last changed in your repo.
 git pkgs outdated               # show packages with newer versions available
 git pkgs outdated --major       # only major version updates
 git pkgs outdated --minor       # minor and major updates (skip patch)
+git pkgs outdated --at v2.0     # what was outdated when we released v2.0?
+git pkgs outdated --at 2024-03-01  # what was outdated on this date?
 git pkgs outdated --stateless   # no database needed
 ```
 
 Checks package registries (via [ecosyste.ms](https://packages.ecosyste.ms/)) to find dependencies with newer versions available. Major updates are shown in red, minor in yellow, patch in cyan.
+
+The `--at` flag enables time travel: pass a date (YYYY-MM-DD) or any git ref (tag, branch, commit SHA) to see what was outdated at that point in time. When given a git ref, it uses the commit's date.
 
 ### Check licenses
 

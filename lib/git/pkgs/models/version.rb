@@ -50,6 +50,29 @@ module Git
 
           create(purl: purl, package_purl: package_purl)
         end
+
+        # Find the latest version of a package that was published before a given date.
+        # Compares versions using semantic versioning.
+        #
+        # @param package_purl [String] base purl without version
+        # @param date [Time] cutoff date
+        # @return [Version, nil] the latest version as of that date
+        def self.latest_as_of(package_purl:, date:)
+          candidates = where(package_purl: package_purl)
+            .where { published_at <= date }
+            .where(Sequel.~(published_at: nil))
+            .all
+
+          return nil if candidates.empty?
+
+          candidates.max_by { |v| parse_semver(v.version_string) }
+        end
+
+        def self.parse_semver(version)
+          cleaned = version.to_s.sub(/^v/i, "")
+          parts = cleaned.split(".").first(3).map(&:to_i)
+          parts + [0] * (3 - parts.length)
+        end
       end
     end
   end

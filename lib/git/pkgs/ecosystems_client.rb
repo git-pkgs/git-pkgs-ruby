@@ -78,6 +78,36 @@ module Git
         results
       end
 
+      # Lookup all versions for a package by purl.
+      # Returns version history with published_at dates.
+      #
+      # @param purl [String] package URL without version (e.g., "pkg:gem/rails")
+      # @return [Array<Hash>, nil] array of version data or nil if not found
+      def lookup_all_versions(purl)
+        parsed = Purl.parse(purl)
+        base_url = parsed.ecosystems_package_api_url
+        return nil unless base_url
+
+        fetch_all_pages("#{base_url}/versions")
+      rescue Purl::Error
+        nil
+      end
+
+      # Batch lookup all versions for multiple packages.
+      # Currently fetches each package individually.
+      # Designed for future batch API support.
+      #
+      # @param purls [Array<String>] array of package URLs without versions
+      # @return [Hash<String, Array<Hash>>] hash keyed by purl with version arrays
+      def bulk_lookup_all_versions(purls)
+        results = {}
+        purls.each do |purl|
+          data = lookup_all_versions(purl)
+          results[purl] = data if data
+        end
+        results
+      end
+
       private
 
       def fetch_url(url)
@@ -85,6 +115,24 @@ module Git
         request = Net::HTTP::Get.new(uri)
         request["Accept"] = "application/json"
         execute_request(uri, request)
+      end
+
+      def fetch_all_pages(base_url, per_page: 100)
+        results = []
+        page = 1
+
+        loop do
+          url = "#{base_url}?page=#{page}&per_page=#{per_page}"
+          data = fetch_url(url)
+          break unless data.is_a?(Array) && data.any?
+
+          results.concat(data)
+          break if data.length < per_page
+
+          page += 1
+        end
+
+        results.empty? ? nil : results
       end
 
       def get(path)
